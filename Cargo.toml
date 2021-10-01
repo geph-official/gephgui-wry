@@ -1,0 +1,21 @@
+[package]
+name = "gephgui-wry"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tide = "0.16.0"
+tracing = "0.1.28"
+tracing-subscriber = "0.2.24"
+smolscale = "0.3.16"
+anyhow = "1.0.44"
+mime-sniffer = "0.1.2"
+tap = "1.0.1"
+mime_guess = "2.0.3"
+wry = "0.12.2"
+
+[dependencies.rust-embed]
+version="6.2"
+features=["debug-embed"]
