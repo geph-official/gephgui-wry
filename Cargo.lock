@@ -1161,6 +1161,7 @@ dependencies = [
  "mime-sniffer",
  "mime_guess",
  "rust-embed",
+ "serde_json",
  "smolscale",
  "tap",
  "tide",

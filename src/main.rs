@@ -13,7 +13,8 @@ use wry::{
 };
 
 mod fakefs;
-
+mod interface;
+use interface::global_rpc_handler;
 const SERVE_ADDR: &str = "127.2.3.4:5678";
 
 fn main() -> anyhow::Result<()> {
@@ -33,6 +34,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let window = WindowBuilder::new().with_title("Geph").build(&event_loop)?;
     let _webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
+        .with_rpc_handler(global_rpc_handler)
         .build()?;
 
     event_loop.run(move |event, _, control_flow| {

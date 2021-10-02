@@ -15,6 +15,7 @@ mime-sniffer = "0.1.2"
 tap = "1.0.1"
 mime_guess = "2.0.3"
 wry = "0.12.2"
+serde_json = "1.0.68"
 
 [dependencies.rust-embed]
 version="6.2"
