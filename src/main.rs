@@ -5,6 +5,7 @@ use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 use wry::{
     application::{
+        dpi::LogicalSize,
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop},
         window::WindowBuilder,
@@ -12,8 +13,10 @@ use wry::{
     webview::WebViewBuilder,
 };
 
+mod daemon;
 mod fakefs;
 mod interface;
+mod pac;
 use interface::global_rpc_handler;
 const SERVE_ADDR: &str = "127.2.3.4:5678";
 
@@ -31,7 +34,14 @@ fn main() -> anyhow::Result<()> {
 #[tracing::instrument]
 fn wry_loop() -> anyhow::Result<()> {
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title("Geph").build(&event_loop)?;
+    let window = WindowBuilder::new()
+        .with_inner_size(LogicalSize {
+            width: 400,
+            height: 610,
+        })
+        // .with_resizable(false)
+        .with_title("Geph")
+        .build(&event_loop)?;
     let _webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
