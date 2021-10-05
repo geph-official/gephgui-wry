@@ -12,6 +12,7 @@ use wry::{
     application::{dpi::PhysicalSize, window::Window},
     webview::{RpcRequest, RpcResponse},
 };
+use wry::application::dpi::LogicalSize;
 
 /// JSON-RPC interface that talks to JavaScript.
 #[tracing::instrument]
@@ -38,7 +39,7 @@ fn handle_echo(params: (String,)) -> anyhow::Result<String> {
     Ok(params.0)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct DaemonConfigPlus {
     #[serde(flatten)]
     daemon_conf: DaemonConfig,
@@ -50,6 +51,7 @@ type DeathBox = Mutex<Option<Box<dyn FnOnce() -> anyhow::Result<()> + Send + Syn
 static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
 /// Handles a request to start the daemon
+#[tracing::instrument]
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
     let mut rd = RUNNING_DAEMON.lock();
@@ -72,6 +74,7 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
 }
 
 /// Handles a request to stop the daemon
+#[tracing::instrument]
 fn handle_stop_daemon(_: [u8; 0]) -> anyhow::Result<String> {
     if let Some(killfun) = RUNNING_DAEMON.lock().take() {
         killfun()?;
@@ -82,6 +85,7 @@ fn handle_stop_daemon(_: [u8; 0]) -> anyhow::Result<String> {
 static RUNNING_BINDPROX: Lazy<DeathBox> = Lazy::new(Default::default);
 
 /// Handles a request to start the binder proxy.
+#[tracing::instrument]
 fn handle_start_binder_proxy(_: [u8; 0]) -> anyhow::Result<String> {
     let mut rd = RUNNING_BINDPROX.lock();
     if rd.is_none() {
@@ -96,6 +100,7 @@ fn handle_start_binder_proxy(_: [u8; 0]) -> anyhow::Result<String> {
 }
 
 /// Handles a request to stop the binder proxy.
+#[tracing::instrument]
 fn handle_stop_binder_proxy(_: [u8; 0]) -> anyhow::Result<String> {
     if let Some(killfun) = RUNNING_BINDPROX.lock().take() {
         killfun()?;
@@ -112,6 +117,7 @@ enum SyncStatus {
 static SYNC_STATUS_SLAB: Lazy<Mutex<Slab<SyncStatus>>> = Lazy::new(Default::default);
 
 /// Handles a request to start syncing the status.
+#[tracing::instrument]
 fn handle_start_sync_status(args: (String, String, bool)) -> anyhow::Result<usize> {
     let (username, password, force) = args;
     let mut slab = SYNC_STATUS_SLAB.lock();
@@ -124,6 +130,7 @@ fn handle_start_sync_status(args: (String, String, bool)) -> anyhow::Result<usiz
 }
 
 /// Handles a request for the status of some sync.
+#[tracing::instrument]
 fn handle_check_sync_status(args: (usize,)) -> anyhow::Result<Option<serde_json::Value>> {
     let slab = SYNC_STATUS_SLAB.lock();
     match slab.get(args.0).context("no such id")? {
@@ -134,11 +141,12 @@ fn handle_check_sync_status(args: (usize,)) -> anyhow::Result<Option<serde_json:
 }
 
 /// Handles a request to change DPI on, say, GTK platforms with pseudo-hidpi through font size changes.
+#[tracing::instrument]
 fn handle_set_conversion_factor(window: &Window, params: (f64,)) -> anyhow::Result<String> {
     let factor = params.0;
-    dbg!(factor);
+    tracing::debug!(factor);
     window.set_resizable(true);
-    window.set_inner_size(PhysicalSize {
+    window.set_inner_size(LogicalSize {
         width: 400.0 * factor,
         height: 610.0 * factor,
     });

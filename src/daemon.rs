@@ -32,7 +32,7 @@ pub fn start_binder_proxy() -> anyhow::Result<std::process::Child> {
 }
 
 /// Configuration for starting the daemon
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct DaemonConfig {
     pub username: String,
     pub password: String,

@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use fakefs::FakeFs;
 use tap::Tap;
 use tide::Request;
@@ -42,7 +44,7 @@ fn wry_loop() -> anyhow::Result<()> {
         // .with_resizable(false)
         .with_title("Geph")
         .build(&event_loop)?;
-    let _webview = WebViewBuilder::new(window)?
+    let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
         .build()?;
@@ -56,6 +58,9 @@ fn wry_loop() -> anyhow::Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+            Event::RedrawRequested(_) => {
+                webview.resize().expect("cannot resize window");
+            }
             _ => (),
         }
     });
