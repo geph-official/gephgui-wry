@@ -3,6 +3,9 @@ use std::process::Stdio;
 use serde::Deserialize;
 use tap::Pipe;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 /// Synchronizes the stuff
 pub fn sync_status(
     username: String,
@@ -65,7 +68,7 @@ impl DaemonConfig {
             cmd.arg("connect");
             cmd
         };
-        let child = command
+        command
             .arg("--username")
             .arg(self.username.as_str())
             .arg("--password")
@@ -80,7 +83,10 @@ impl DaemonConfig {
                 } else {
                     c
                 }
-            })
+            });
+        #[cfg(windows)]
+            command.creation_flags(0x08000000);
+        let child = command
             .spawn()?;
         Ok(child)
     }
