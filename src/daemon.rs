@@ -1,7 +1,7 @@
 use std::process::Stdio;
 
 use serde::Deserialize;
-use tap::Pipe;
+use tap::{Pipe, Tap};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -19,6 +19,10 @@ pub fn sync_status(
         .arg("--password")
         .arg(&password)
         .pipe(|c| if force { c.arg("--force") } else { c })
+        .tap_mut(|_c| {
+            #[cfg(windows)]
+            _c.creation_flags(0x08000000);
+        })
         .stdout(Stdio::piped())
         .spawn()?;
     let output = cmd.wait_with_output()?;
@@ -44,6 +48,7 @@ pub struct DaemonConfig {
     pub force_bridges: bool,
     pub vpn: bool,
     pub exclude_prc: bool,
+    pub listen_all: bool,
 }
 
 const DAEMON_PATH: &str = "geph4-client";
@@ -54,15 +59,13 @@ impl DaemonConfig {
     /// Starts the daemon, returning a process.
     pub fn start(self) -> anyhow::Result<std::process::Child> {
         let mut command = if self.vpn {
-            std::mem::replace(
-                std::process::Command::new(VPN_HELPER_PATH)
-                    .arg(DAEMON_PATH)
-                    .arg("connect")
-                    .arg("--stdio-vpn")
-                    .arg("--dns-listen")
-                    .arg("127.0.0.1:15353"),
-                std::process::Command::new(VPN_HELPER_PATH),
-            )
+            let mut cmd = std::process::Command::new(VPN_HELPER_PATH);
+            cmd.arg(DAEMON_PATH)
+                .arg("connect")
+                .arg("--stdio-vpn")
+                .arg("--dns-listen")
+                .arg("127.0.0.1:15353");
+            cmd
         } else {
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");
@@ -75,19 +78,32 @@ impl DaemonConfig {
             .arg(self.password.as_str())
             .arg("--exit-server")
             .arg(self.exit_name.as_str())
-            .pipe(|c| if self.use_tcp { c.arg("--use-tcp") } else { c })
-            .pipe(|c| if self.use_tcp { c.arg("--use-tcp") } else { c })
-            .pipe(|c| {
+            .tap_mut(|c| {
+                if self.use_tcp {
+                    c.arg("--use-tcp");
+                }
+            })
+            .tap_mut(|c| {
+                if self.use_tcp {
+                    c.arg("--use-tcp");
+                }
+            })
+            .tap_mut(|c| {
                 if self.exclude_prc {
-                    c.arg("--exclude-prc")
-                } else {
-                    c
+                    c.arg("--exclude-prc");
+                }
+            })
+            .tap_mut(|c| {
+                if self.listen_all {
+                    c.arg("--socks5-listen")
+                        .arg("0.0.0.0:9909")
+                        .arg("--http-listen")
+                        .arg("0.0.0.0:9910");
                 }
             });
         #[cfg(windows)]
-            command.creation_flags(0x08000000);
-        let child = command
-            .spawn()?;
+        command.creation_flags(0x08000000);
+        let child = command.spawn()?;
         Ok(child)
     }
 }

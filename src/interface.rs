@@ -8,11 +8,11 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use slab::Slab;
 use tide::convert::{DeserializeOwned, Serialize};
+use wry::application::dpi::LogicalSize;
 use wry::{
-    application::{dpi::PhysicalSize, window::Window},
+    application::window::Window,
     webview::{RpcRequest, RpcResponse},
 };
-use wry::application::dpi::LogicalSize;
 
 /// JSON-RPC interface that talks to JavaScript.
 #[tracing::instrument]
