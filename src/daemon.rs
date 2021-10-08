@@ -59,13 +59,20 @@ impl DaemonConfig {
     /// Starts the daemon, returning a process.
     pub fn start(self) -> anyhow::Result<std::process::Child> {
         let mut command = if self.vpn {
-            let mut cmd = std::process::Command::new(VPN_HELPER_PATH);
-            cmd.arg(DAEMON_PATH)
-                .arg("connect")
-                .arg("--stdio-vpn")
-                .arg("--dns-listen")
-                .arg("127.0.0.1:15353");
-            cmd
+            #[cfg(unix)]
+            {
+                let mut cmd = std::process::Command::new("pkexec").tap_mut(|f| {
+                    f.arg(which::which(VPN_HELPER_PATH).expect("vpn helper not in PATH"));
+                });
+                cmd.arg(which::which(DAEMON_PATH).expect("daemon not in PATH"))
+                    .arg("connect")
+                    .arg("--stdio-vpn")
+                    .arg("--dns-listen")
+                    .arg("127.0.0.1:15353")
+                    .arg("--credential-cache")
+                    .arg("/tmp/geph4-credentials");
+                cmd
+            }
         } else {
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");
