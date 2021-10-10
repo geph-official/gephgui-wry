@@ -17,6 +17,7 @@ use wry::{
 /// JSON-RPC interface that talks to JavaScript.
 #[tracing::instrument]
 pub fn global_rpc_handler(window: &Window, req: RpcRequest) -> Option<RpcResponse> {
+    tracing::debug!(req = format!("{:?}", req).as_str(), "received RPC request");
     match req.method.as_str() {
         "echo" => handle_rpc(req, handle_echo),
         "start_daemon" => handle_rpc(req, handle_start_daemon),

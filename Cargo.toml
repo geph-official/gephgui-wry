@@ -23,7 +23,7 @@ smol = "1.2.5"
 
 [dependencies.wry]
 version="0.12.2"
-default-features=false
+# default-features=false
 
 [dependencies.surf]
 version="2.3.1"
