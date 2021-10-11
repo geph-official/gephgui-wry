@@ -17,6 +17,7 @@ use wry::{
 /// JSON-RPC interface that talks to JavaScript.
 #[tracing::instrument]
 pub fn global_rpc_handler(window: &Window, req: RpcRequest) -> Option<RpcResponse> {
+    tracing::debug!(req = format!("{:?}", req).as_str(), "received RPC request");
     match req.method.as_str() {
         "echo" => handle_rpc(req, handle_echo),
         "start_daemon" => handle_rpc(req, handle_start_daemon),
@@ -28,6 +29,7 @@ pub fn global_rpc_handler(window: &Window, req: RpcRequest) -> Option<RpcRespons
         "set_conversion_factor" => {
             handle_rpc(req, |params| handle_set_conversion_factor(window, params))
         }
+        "get_url" => handle_rpc(req, handle_get_url),
         other => {
             tracing::error!("unrecognized RPC verb {}", other);
             None
@@ -148,6 +150,15 @@ fn handle_set_conversion_factor(window: &Window, params: (f64,)) -> anyhow::Resu
     });
     window.set_resizable(false);
     Ok("".into())
+}
+
+/// Handles a request to poll a particular URL
+#[tracing::instrument]
+fn handle_get_url(params: (String,)) -> anyhow::Result<String> {
+    smol::future::block_on(async move {
+        let mut resp = surf::get(params.0).await.map_err(|e| e.into_inner())?;
+        resp.body_string().await.map_err(|e| e.into_inner())
+    })
 }
 
 fn handle_rpc<I: DeserializeOwned, O: Serialize, F: FnOnce(I) -> anyhow::Result<O>>(
