@@ -59,11 +59,10 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
     let mut rd = RUNNING_DAEMON.lock();
     if rd.is_none() {
-        let mut daemon = params.daemon_conf.start()?;
+        let daemon = params.daemon_conf.start()?;
         if params.autoproxy {
             configure_proxy()?;
         }
-        let autoproxy = params.autoproxy;
         *rd = Some(daemon);
     }
     Ok("".into())

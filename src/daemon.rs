@@ -3,10 +3,10 @@ use std::process::Stdio;
 use serde::Deserialize;
 use tap::{Pipe, Tap};
 
-use crate::interface::{DeathBox, DeathBoxInner};
+use crate::interface::DeathBoxInner;
+use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use anyhow::Context;
 
 /// Synchronizes the stuff
 pub fn sync_status(
@@ -94,14 +94,21 @@ impl DaemonConfig {
                 let mut cmd = std::process::Command::new("pkexec").tap_mut(|f| {
                     f.arg(which::which(VPN_HELPER_PATH).expect("vpn helper not in PATH"));
                 });
-                cmd.arg(which::which(DAEMON_PATH).expect("daemon not in PATH"))
+                let mut child = cmd
+                    .arg(which::which(DAEMON_PATH).expect("daemon not in PATH"))
                     .arg("connect")
                     .arg("--stdio-vpn")
                     .arg("--dns-listen")
                     .arg("127.0.0.1:15353")
                     .arg("--credential-cache")
                     .arg("/tmp/geph4-credentials")
-                    .args(&common_args);
+                    .args(&common_args)
+                    .spawn()?;
+                Ok(Box::new(move || {
+                    child.kill()?;
+                    child.wait()?;
+                    Ok(())
+                }))
             }
             #[cfg(windows)]
             {

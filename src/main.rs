@@ -12,7 +12,7 @@ use wry::{
         event_loop::{ControlFlow, EventLoop},
         window::WindowBuilder,
     },
-    webview::WebViewBuilder,
+    webview::{WebContext, WebViewBuilder},
 };
 
 mod daemon;
@@ -47,6 +47,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
+        .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
     event_loop.run(move |event, _, control_flow| {

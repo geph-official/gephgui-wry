@@ -22,6 +22,7 @@ slab = "0.4.4"
 which = "4.2.2"
 runas="0.2"
 smol = "1.2.5"
+dirs = "4.0.0"
 
 [dependencies.wry]
 version="0.12.2"
