@@ -46,7 +46,8 @@ struct DaemonConfigPlus {
     autoproxy: bool,
 }
 
-type DeathBox = Mutex<Option<Box<dyn FnOnce() -> anyhow::Result<()> + Send + Sync + 'static>>>;
+pub type DeathBox = Mutex<Option<DeathBoxInner>>;
+pub type DeathBoxInner = Box<dyn FnOnce() -> anyhow::Result<()> + Send + Sync + 'static>;
 
 static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
@@ -61,14 +62,7 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
             configure_proxy()?;
         }
         let autoproxy = params.autoproxy;
-        *rd = Some(Box::new(move || {
-            daemon.kill()?;
-            daemon.wait()?;
-            if autoproxy {
-                deconfigure_proxy()?;
-            }
-            Ok(())
-        }));
+        *rd = Some(daemon);
     }
     Ok("".into())
 }
@@ -77,8 +71,10 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
 #[tracing::instrument]
 fn handle_stop_daemon(_: [u8; 0]) -> anyhow::Result<String> {
     if let Some(killfun) = RUNNING_DAEMON.lock().take() {
+        tracing::warn!("running the killfun");
         killfun()?;
     }
+    deconfigure_proxy()?;
     Ok("".into())
 }
 
