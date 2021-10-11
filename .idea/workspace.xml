@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="758c40d1-e6da-46b9-8c48-c2707a30ee80" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gephgui" beforeDir="false" afterPath="$PROJECT_DIR$/gephgui" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/interface.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/interface.rs" afterDir="false" />
     </list>
