@@ -75,7 +75,9 @@ fn handle_stop_daemon(_: [u8; 0]) -> anyhow::Result<String> {
         tracing::warn!("running the killfun");
         killfun()?;
     }
-    deconfigure_proxy()?;
+    if let Err(err) = deconfigure_proxy() {
+        tracing::error!("cannot deconfigure proxy: {:?}", err);
+    }
     Ok("".into())
 }
 
