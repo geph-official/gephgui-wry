@@ -84,7 +84,7 @@ fn wry_loop() -> anyhow::Result<()> {
 fn create_systray<T>(event_loop: &EventLoop<T>) -> anyhow::Result<SystemTray> {
     let mut tray_menu = ContextMenu::new();
     tray_menu.add_item(MenuItemAttributes::new("Open"));
-    let icon = include_bytes!("logo-naked.png").to_vec();
+    let icon = include_bytes!("logo-naked.ico").to_vec();
     #[cfg(target_os = "linux")]
     {
         use std::io::Write;
@@ -95,6 +95,10 @@ fn create_systray<T>(event_loop: &EventLoop<T>) -> anyhow::Result<SystemTray> {
         tmpfile.keep()?;
         Ok(SystemTrayBuilder::new(path, Some(tray_menu)).build(event_loop)?)
     }
+    #[cfg(not(target_os="linux"))]
+        {
+            Ok(SystemTrayBuilder::new(icon, Some(tray_menu)).build(event_loop)?)
+        }
 }
 
 #[tracing::instrument]
