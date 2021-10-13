@@ -1201,7 +1201,9 @@ dependencies = [
  "smol",
  "smolscale",
  "surf",
+ "tao",
  "tap",
+ "tempfile",
  "tide",
  "tracing",
  "tracing-subscriber",
@@ -2256,6 +2258,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
+name = "remove_dir_all"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "ring"
 version = "0.16.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2855,6 +2866,7 @@ dependencies = [
  "raw-window-handle",
  "scopeguard",
  "serde",
+ "tauri-libappindicator",
  "unicode-segmentation",
  "winapi",
  "x11-dl",
@@ -2865,6 +2877,43 @@ name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
+
+[[package]]
+name = "tauri-libappindicator"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af6057bf1b03141122da159ad4136d8a474240db59d81af1840d7fce3b819ef2"
+dependencies = [
+ "glib",
+ "gtk",
+ "gtk-sys",
+ "log",
+ "tauri-libappindicator-sys",
+]
+
+[[package]]
+name = "tauri-libappindicator-sys"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c40a817171cf25d69dd31e3fa9360fd4367e54948e30f3356962f0b1d9f23dad"
+dependencies = [
+ "gtk-sys",
+ "pkg-config",
+]
+
+[[package]]
+name = "tempfile"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dac1c663cfc93810f88aed9b8941d48cabf856a1b111c29a40439018d870eb22"
+dependencies = [
+ "cfg-if 1.0.0",
+ "libc",
+ "rand 0.8.4",
+ "redox_syscall",
+ "remove_dir_all",
+ "winapi",
+]
 
 [[package]]
 name = "thiserror"

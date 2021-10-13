@@ -51,7 +51,7 @@ struct DaemonConfigPlus {
 pub type DeathBox = Mutex<Option<DeathBoxInner>>;
 pub type DeathBoxInner = Box<dyn FnOnce() -> anyhow::Result<()> + Send + Sync + 'static>;
 
-static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
+pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
 /// Handles a request to start the daemon
 #[tracing::instrument]
