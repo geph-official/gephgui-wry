@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
 
 #[tracing::instrument]
 fn wry_loop() -> anyhow::Result<()> {
-    let logo_png = png::Decoder::new(include_bytes!("logo-naked.png").as_ref());
+    let logo_png = png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref());
     let mut logo_png = logo_png.read_info()?;
     let mut icon_buf = vec![0; logo_png.output_buffer_size()];
     logo_png.next_frame(&mut icon_buf)?;
