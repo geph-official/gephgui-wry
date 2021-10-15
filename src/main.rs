@@ -1,11 +1,11 @@
 #![windows_subsystem = "windows"]
 
 use fakefs::FakeFs;
-use tao::system_tray::SystemTray;
 use tao::{
     menu::{ContextMenu, MenuItemAttributes},
     system_tray::SystemTrayBuilder,
 };
+use tao::{system_tray::SystemTray, window::Icon};
 use tap::Tap;
 use tide::Request;
 use tracing::Level;
@@ -40,7 +40,12 @@ fn main() -> anyhow::Result<()> {
 
 #[tracing::instrument]
 fn wry_loop() -> anyhow::Result<()> {
+    let logo_png = png::Decoder::new(include_bytes!("logo-naked.png").as_ref());
+    let mut logo_png = logo_png.read_info()?;
+    let mut icon_buf = vec![0; logo_png.output_buffer_size()];
+    logo_png.next_frame(&mut icon_buf)?;
     let event_loop = EventLoop::new();
+    let logo_icon = Icon::from_rgba(icon_buf, logo_png.info().width, logo_png.info().height)?;
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize {
             width: 400,
@@ -48,6 +53,7 @@ fn wry_loop() -> anyhow::Result<()> {
         })
         // .with_resizable(false)
         .with_title("Geph")
+        .with_window_icon(Some(logo_icon))
         .build(&event_loop)?;
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
@@ -95,10 +101,10 @@ fn create_systray<T>(event_loop: &EventLoop<T>) -> anyhow::Result<SystemTray> {
         tmpfile.keep()?;
         Ok(SystemTrayBuilder::new(path, Some(tray_menu)).build(event_loop)?)
     }
-    #[cfg(not(target_os="linux"))]
-        {
-            Ok(SystemTrayBuilder::new(icon, Some(tray_menu)).build(event_loop)?)
-        }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(SystemTrayBuilder::new(icon, Some(tray_menu)).build(event_loop)?)
+    }
 }
 
 #[tracing::instrument]
