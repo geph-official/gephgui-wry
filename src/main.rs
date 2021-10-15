@@ -1,11 +1,6 @@
 #![windows_subsystem = "windows"]
 
 use fakefs::FakeFs;
-use tao::{
-    menu::{ContextMenu, MenuItemAttributes},
-    system_tray::SystemTrayBuilder,
-};
-use tao::{system_tray::SystemTray, window::Icon};
 use tap::Tap;
 use tide::Request;
 use tracing::Level;
@@ -15,7 +10,9 @@ use wry::{
         dpi::LogicalSize,
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop},
-        window::WindowBuilder,
+        menu::{ContextMenu, MenuItemAttributes},
+        system_tray::{SystemTray, SystemTrayBuilder},
+        window::{Icon, WindowBuilder},
     },
     webview::{WebContext, WebViewBuilder},
 };
