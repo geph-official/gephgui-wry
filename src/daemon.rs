@@ -58,7 +58,7 @@ const DAEMON_PATH: &str = "geph4-client";
 const VPN_HELPER_PATH: &str = "geph4-vpn-helper";
 
 pub fn logs_path() -> PathBuf {
-    let mut path = dirs::state_dir().expect("must have state dir!");
+    let mut path = dirs::preference_dir().expect("must have state dir!");
     path.push("geph-logs.txt");
     path
 }
