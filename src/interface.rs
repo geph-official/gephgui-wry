@@ -1,8 +1,10 @@
 use crate::{
-    daemon::{start_binder_proxy, sync_status, DaemonConfig},
+    daemon::{logs_path, start_binder_proxy, sync_status, DaemonConfig},
+    mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
 };
 use anyhow::Context;
+use native_dialog::FileDialog;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::Deserialize;
@@ -30,6 +32,7 @@ pub fn global_rpc_handler(window: &Window, req: RpcRequest) -> Option<RpcRespons
             handle_rpc(req, |params| handle_set_conversion_factor(window, params))
         }
         "get_url" => handle_rpc(req, handle_get_url),
+        "export_logs" => handle_rpc(req, handle_export_logs),
         other => {
             tracing::error!("unrecognized RPC verb {}", other);
             None
@@ -156,10 +159,21 @@ fn handle_set_conversion_factor(window: &Window, params: (f64,)) -> anyhow::Resu
 /// Handles a request to poll a particular URL
 #[tracing::instrument]
 fn handle_get_url(params: (String,)) -> anyhow::Result<String> {
-    smol::future::block_on(async move {
-        let mut resp = surf::get(params.0).await.map_err(|e| e.into_inner())?;
-        resp.body_string().await.map_err(|e| e.into_inner())
-    })
+    Ok(ureq::get(&params.0).call()?.into_string()?)
+}
+
+/// Handles a request to export the daemon logs
+#[tracing::instrument]
+fn handle_export_logs(params: (String,)) -> anyhow::Result<String> {
+    mt_enqueue(move || {
+        let save_to = FileDialog::new()
+            .set_filename(&params.0)
+            .show_save_single_file();
+        if let Ok(Some(save_to)) = save_to {
+            let _ = std::fs::copy(&logs_path(), &save_to);
+        }
+    });
+    Ok("".into())
 }
 
 fn handle_rpc<I: DeserializeOwned, O: Serialize, F: FnOnce(I) -> anyhow::Result<O>>(

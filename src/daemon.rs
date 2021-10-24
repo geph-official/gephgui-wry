@@ -1,4 +1,4 @@
-use std::process::Stdio;
+use std::{path::PathBuf, process::Stdio};
 
 use serde::Deserialize;
 use tap::{Pipe, Tap};
@@ -57,6 +57,12 @@ const DAEMON_PATH: &str = "geph4-client";
 
 const VPN_HELPER_PATH: &str = "geph4-vpn-helper";
 
+pub fn logs_path() -> PathBuf {
+    let mut path = dirs::state_dir().expect("must have state dir!");
+    path.push("geph-logs.txt");
+    path
+}
+
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
     pub fn start(self) -> anyhow::Result<DeathBoxInner> {
@@ -68,6 +74,8 @@ impl DaemonConfig {
                 v.push(self.password.clone());
                 v.push("--exit-server".into());
                 v.push(self.exit_name.clone());
+                v.push("--log-file".into());
+                v.push(logs_path().to_string_lossy().to_string());
             })
             .tap_mut(|v| {
                 if self.use_tcp {

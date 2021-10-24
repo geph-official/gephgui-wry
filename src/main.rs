@@ -1,6 +1,7 @@
 #![windows_subsystem = "windows"]
 
 use fakefs::FakeFs;
+use mtbus::mt_next;
 use tap::Tap;
 use tide::Request;
 use tracing::Level;
@@ -20,6 +21,7 @@ use wry::{
 mod daemon;
 mod fakefs;
 mod interface;
+mod mtbus;
 mod pac;
 use interface::{global_rpc_handler, RUNNING_DAEMON};
 const SERVE_ADDR: &str = "127.2.3.4:5678";
@@ -41,7 +43,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let mut logo_png = logo_png.read_info()?;
     let mut icon_buf = vec![0; logo_png.output_buffer_size()];
     logo_png.next_frame(&mut icon_buf)?;
-    let event_loop = EventLoop::new();
+    let event_loop: EventLoop<Box<dyn FnOnce() + Send + 'static>> = EventLoop::with_user_event();
     let logo_icon = Icon::from_rgba(icon_buf, logo_png.info().width, logo_png.info().height)?;
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize {
@@ -58,6 +60,11 @@ fn wry_loop() -> anyhow::Result<()> {
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
     let _tray = create_systray(&event_loop)?;
+    let evt_proxy = event_loop.create_proxy();
+    std::thread::spawn(move || loop {
+        let evt = mt_next();
+        evt_proxy.send_event(Box::new(evt)).ok().unwrap();
+    });
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
@@ -78,7 +85,8 @@ fn wry_loop() -> anyhow::Result<()> {
                 webview.resize().expect("cannot resize window");
             }
             Event::MenuEvent { .. } => webview.window().set_visible(true),
-            _ => (),
+            Event::UserEvent(e) => e(),
+            other => {}
         }
     });
 }
