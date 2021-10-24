@@ -33,6 +33,7 @@ pub fn global_rpc_handler(window: &Window, req: RpcRequest) -> Option<RpcRespons
         }
         "get_url" => handle_rpc(req, handle_get_url),
         "export_logs" => handle_rpc(req, handle_export_logs),
+        "open_browser" => handle_rpc(req, handle_open_browser),
         other => {
             tracing::error!("unrecognized RPC verb {}", other);
             None
@@ -173,6 +174,13 @@ fn handle_export_logs(params: (String,)) -> anyhow::Result<String> {
             let _ = std::fs::copy(&logs_path(), &save_to);
         }
     });
+    Ok("".into())
+}
+
+/// Handles a request to open the browser
+#[tracing::instrument]
+fn handle_open_browser(params: (String,)) -> anyhow::Result<String> {
+    let _ = webbrowser::open(&params.0);
     Ok("".into())
 }
 

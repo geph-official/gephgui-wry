@@ -28,6 +28,7 @@ png = "0.17.2"
 native-dialog = "0.5.5"
 ureq = "2.3.0"
 flume = "0.10.9"
+webbrowser = "0.5.5"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

@@ -15,7 +15,7 @@ use wry::{
         system_tray::{SystemTray, SystemTrayBuilder},
         window::{Icon, WindowBuilder},
     },
-    webview::{WebContext, WebViewBuilder},
+    webview::{self, WebContext, WebViewBuilder},
 };
 
 mod daemon;
@@ -57,6 +57,19 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
+        .with_initialization_script(
+            r"
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('a')) {
+                e.preventDefault();
+                if (e.target.getAttribute('target') === '_blank') {
+                    window.rpc.call('open_browser', e.target.getAttribute('href'))
+                }
+            }
+        })
+        window.open = (url) => window.rpc.call('open_browser', url)
+        ",
+        )
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
     let _tray = create_systray(&event_loop)?;
@@ -86,7 +99,8 @@ fn wry_loop() -> anyhow::Result<()> {
             }
             Event::MenuEvent { .. } => webview.window().set_visible(true),
             Event::UserEvent(e) => e(),
-            other => {}
+            Event::TrayEvent { .. } => webview.window().set_visible(true),
+            _ => {}
         }
     });
 }
