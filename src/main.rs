@@ -2,6 +2,7 @@
 
 use fakefs::FakeFs;
 use mtbus::mt_next;
+use tao::system_tray::{SystemTray, SystemTrayBuilder};
 use tap::Tap;
 use tide::Request;
 use tracing::Level;
@@ -12,7 +13,6 @@ use wry::{
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop},
         menu::{ContextMenu, MenuItemAttributes},
-        system_tray::{SystemTray, SystemTrayBuilder},
         window::{Icon, WindowBuilder},
     },
     webview::{WebContext, WebViewBuilder},

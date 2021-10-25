@@ -112,7 +112,7 @@ impl DaemonConfig {
                     .arg("/tmp/geph4-credentials")
                     .args(&common_args)
                     .spawn()?;
-                Ok(Box::new(move || {
+                Ok(Box::new(move || { 
                     child.kill()?;
                     child.wait()?;
                     Ok(())
