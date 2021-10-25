@@ -15,7 +15,7 @@ use wry::{
         system_tray::{SystemTray, SystemTrayBuilder},
         window::{Icon, WindowBuilder},
     },
-    webview::{self, WebContext, WebViewBuilder},
+    webview::{WebContext, WebViewBuilder},
 };
 
 mod daemon;
