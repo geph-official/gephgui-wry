@@ -322,7 +322,7 @@ checksum = "a83b21d2aa75e464db56225e1bda2dd5993311ba1095acaa8fa03d1ae67026ba"
 dependencies = [
  "atk-sys",
  "bitflags",
- "glib 0.14.8",
+ "glib",
  "libc",
 ]
 
@@ -448,7 +448,7 @@ checksum = "33b5725979db0c586d98abad2193cdb612dd40ef95cd26bd99851bf93b3cb482"
 dependencies = [
  "bitflags",
  "cairo-sys-rs",
- "glib 0.14.8",
+ "glib",
  "libc",
  "thiserror",
 ]
@@ -1168,7 +1168,7 @@ dependencies = [
  "gdk-pixbuf",
  "gdk-sys",
  "gio",
- "glib 0.14.8",
+ "glib",
  "libc",
  "pango",
 ]
@@ -1181,7 +1181,7 @@ checksum = "534192cb8f01daeb8fab2c8d4baa8f9aae5b7a39130525779f5c2608e235b10f"
 dependencies = [
  "gdk-pixbuf-sys",
  "gio",
- "glib 0.14.8",
+ "glib",
  "libc",
 ]
 
@@ -1309,7 +1309,7 @@ dependencies = [
  "futures-core",
  "futures-io",
  "gio-sys 0.14.0",
- "glib 0.14.8",
+ "glib",
  "libc",
  "once_cell",
  "thiserror",
@@ -1343,25 +1343,6 @@ dependencies = [
 
 [[package]]
 name = "glib"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c685013b7515e668f1b57a165b009d4d28cb139a8a989bbd699c10dad29d0c5"
-dependencies = [
- "bitflags",
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-task",
- "futures-util",
- "glib-macros 0.10.1",
- "glib-sys 0.10.1",
- "gobject-sys 0.10.0",
- "libc",
- "once_cell",
-]
-
-[[package]]
-name = "glib"
 version = "0.14.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c515f1e62bf151ef6635f528d05b02c11506de986e43b34a5c920ef0b3796a4"
@@ -1371,28 +1352,12 @@ dependencies = [
  "futures-core",
  "futures-executor",
  "futures-task",
- "glib-macros 0.14.1",
+ "glib-macros",
  "glib-sys 0.14.0",
  "gobject-sys 0.14.0",
  "libc",
  "once_cell",
  "smallvec",
-]
-
-[[package]]
-name = "glib-macros"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41486a26d1366a8032b160b59065a59fb528530a46a49f627e7048fb8c064039"
-dependencies = [
- "anyhow",
- "heck",
- "itertools 0.9.0",
- "proc-macro-crate 0.1.5",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1479,7 +1444,7 @@ dependencies = [
  "gdk",
  "gdk-pixbuf",
  "gio",
- "glib 0.14.8",
+ "glib",
  "gtk-sys",
  "gtk3-macros",
  "libc",
@@ -1656,15 +1621,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69ddb889f9d0d08a67338271fa9b62996bc788c7796a5c18cf057420aaed5eaf"
@@ -1684,7 +1640,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ca9c7d1445bba2889672fbadc16c3d5007bfdcf0a15a18a3a50fe9fab2c7427"
 dependencies = [
- "glib 0.14.8",
+ "glib",
  "javascriptcore-rs-sys",
 ]
 
@@ -1733,7 +1689,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84928b9cf11786337deb7befb0605295149c2bd5dcdcf31697d7d2444a48b7ee"
 dependencies = [
- "glib 0.14.8",
+ "glib",
  "gtk",
  "gtk-sys",
  "libappindicator-sys",
@@ -1748,18 +1704,6 @@ checksum = "237b254c74da51cf41ad9cc2aadd9dc9c08e41779937162257f05a214a98d09b"
 dependencies = [
  "gtk-sys",
  "pkg-config",
-]
-
-[[package]]
-name = "libayatana-appindicator"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b67e7b310a40158d82c7a96e112d1e2925f0218a02a78af858a248e72bf303"
-dependencies = [
- "glib 0.10.3",
- "gtk",
- "gtk-sys",
- "log",
 ]
 
 [[package]]
@@ -2044,7 +1988,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "546fd59801e5ca735af82839007edd226fe7d3bb06433ec48072be4439c28581"
 dependencies = [
  "bitflags",
- "glib 0.14.8",
+ "glib",
  "libc",
  "once_cell",
  "pango-sys",
@@ -2955,7 +2899,7 @@ dependencies = [
  "anyhow",
  "cfg-expr",
  "heck",
- "itertools 0.10.1",
+ "itertools",
  "pkg-config",
  "strum 0.21.0",
  "strum_macros 0.21.1",
@@ -2982,13 +2926,12 @@ dependencies = [
  "gdk-pixbuf",
  "gdk-sys",
  "gio",
- "glib 0.14.8",
+ "glib",
  "glib-sys 0.14.0",
  "gtk",
  "instant",
  "lazy_static",
  "libappindicator",
- "libayatana-appindicator",
  "libc",
  "log",
  "ndk",
@@ -3473,7 +3416,7 @@ dependencies = [
  "gdk-sys",
  "gio",
  "gio-sys 0.14.0",
- "glib 0.14.8",
+ "glib",
  "glib-sys 0.14.0",
  "gobject-sys 0.14.0",
  "gtk",
@@ -3701,7 +3644,7 @@ dependencies = [
  "core-graphics 0.22.2",
  "gdk",
  "gio",
- "glib 0.14.8",
+ "glib",
  "gtk",
  "http",
  "libc",

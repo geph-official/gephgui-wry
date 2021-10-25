@@ -5,8 +5,8 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-ayatana = ["tao/ayatana"]
+# [features]
+# ayatana = ["tao/ayatana"]
 
 [dependencies]
 tracing = "0.1.28"
