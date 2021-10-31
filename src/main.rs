@@ -24,7 +24,7 @@ mod interface;
 mod mtbus;
 mod pac;
 use interface::{global_rpc_handler, RUNNING_DAEMON};
-const SERVE_ADDR: &str = "127.2.3.4:5678";
+const SERVE_ADDR: &str = "127.0.0.1:5678";
 
 fn main() -> anyhow::Result<()> {
     config_logging();
