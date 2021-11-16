@@ -87,11 +87,13 @@ fn wry_loop() -> anyhow::Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
+                tracing::info!("receiving CloseRequested event");
                 if RUNNING_DAEMON.lock().is_some() {
                     tracing::info!("hiding the window now");
                     webview.window().set_visible(false)
                 } else {
-                    *control_flow = ControlFlow::Exit
+                    *control_flow = ControlFlow::Exit;
+                    std::process::exit(0);
                 }
             }
             Event::RedrawRequested(_) => {
