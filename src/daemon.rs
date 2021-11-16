@@ -58,7 +58,7 @@ const DAEMON_PATH: &str = "geph4-client";
 const VPN_HELPER_PATH: &str = "geph4-vpn-helper";
 
 pub fn logs_path() -> PathBuf {
-    let mut path = dirs::preference_dir().expect("must have state dir!");
+    let mut path = std::env::temp_dir();
     path.push("geph-logs.txt");
     path
 }
@@ -112,7 +112,7 @@ impl DaemonConfig {
                     .arg("/tmp/geph4-credentials")
                     .args(&common_args)
                     .spawn()?;
-                Ok(Box::new(move || { 
+                Ok(Box::new(move || {
                     child.kill()?;
                     child.wait()?;
                     Ok(())
