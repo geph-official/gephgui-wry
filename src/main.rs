@@ -15,15 +15,15 @@ use wry::{
         menu::{ContextMenu, MenuItemAttributes},
         window::{Icon, WindowBuilder},
     },
-    webview::{WebContext, WebViewBuilder},
+    webview::{WebContext, WebView, WebViewBuilder},
 };
 
 mod daemon;
 mod fakefs;
-mod interface;
 mod mtbus;
 mod pac;
-use interface::{global_rpc_handler, RUNNING_DAEMON};
+mod rpc_handler;
+use rpc_handler::{global_rpc_handler, RUNNING_DAEMON};
 const SERVE_ADDR: &str = "127.0.0.1:5678";
 
 fn main() -> anyhow::Result<()> {
@@ -37,13 +37,13 @@ fn main() -> anyhow::Result<()> {
     wry_loop()
 }
 
-#[tracing::instrument]
 fn wry_loop() -> anyhow::Result<()> {
     let logo_png = png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref());
     let mut logo_png = logo_png.read_info()?;
     let mut icon_buf = vec![0; logo_png.output_buffer_size()];
     logo_png.next_frame(&mut icon_buf)?;
-    let event_loop: EventLoop<Box<dyn FnOnce() + Send + 'static>> = EventLoop::with_user_event();
+    let event_loop: EventLoop<Box<dyn FnOnce(&WebView) + Send + 'static>> =
+        EventLoop::with_user_event();
     let logo_icon = Icon::from_rgba(icon_buf, logo_png.info().width, logo_png.info().height)?;
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize {
@@ -57,19 +57,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
-        .with_initialization_script(
-            r"
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('a')) {
-                e.preventDefault();
-                if (e.target.getAttribute('target') === '_blank') {
-                    window.rpc.call('open_browser', e.target.getAttribute('href'))
-                }
-            }
-        })
-        window.open = (url) => window.rpc.call('open_browser', url)
-        ",
-        )
+        .with_initialization_script(include_str!("init.js"))
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
     let _tray = create_systray(&event_loop)?;
@@ -100,7 +88,7 @@ fn wry_loop() -> anyhow::Result<()> {
                 webview.resize().expect("cannot resize window");
             }
             Event::MenuEvent { .. } => webview.window().set_visible(true),
-            Event::UserEvent(e) => e(),
+            Event::UserEvent(e) => e(&webview),
             Event::TrayEvent { .. } => webview.window().set_visible(true),
             _ => {}
         }
