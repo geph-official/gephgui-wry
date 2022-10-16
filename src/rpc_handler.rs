@@ -82,7 +82,11 @@ fn handle_sync(params: (String, String)) -> anyhow::Result<String> {
     let mut s = String::new();
     child.stdout.take().unwrap().read_to_string(&mut s)?;
     if !s.contains('{') {
-        anyhow::bail!(e.lines().last().map(|e| e.to_string()).context("lell")?)
+        anyhow::bail!(e
+            .lines()
+            .last()
+            .map(|e| e.to_string())
+            .context("cannot read anything from sync")?)
     }
 
     eprintln!("ess: {s}");

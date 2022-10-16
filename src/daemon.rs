@@ -89,6 +89,25 @@ impl DaemonConfig {
                     Ok(())
                 }))
             }
+            #[cfg(target_os = "windows")]
+            {
+                if !is_elevated::is_elevated() {
+                    anyhow::bail!("VPN mode requires admin privileges on Windows!!!")
+                }
+                let mut cmd = std::process::Command::new(DAEMON_PATH);
+                cmd.arg("connect");
+                cmd.args(&common_args);
+                cmd.arg("--vpn-mode").arg("windivert");
+                cmd.stderr(log_file);
+                #[cfg(windows)]
+                cmd.creation_flags(0x08000000);
+                let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                Ok(Box::new(move || {
+                    child.kill()?;
+                    child.wait()?;
+                    Ok(())
+                }))
+            }
         } else {
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");
