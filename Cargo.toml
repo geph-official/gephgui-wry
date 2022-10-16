@@ -35,6 +35,9 @@ webbrowser = "0.5.5"
 
 tao = { git = "https://github.com/tauri-apps/tao", branch = "next", default-features = false, features = ["tray" ] }
 
+[target.'cfg(windows)'.dependencies]
+is_elevated="0.1"
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 
