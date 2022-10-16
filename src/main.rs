@@ -47,8 +47,8 @@ fn wry_loop() -> anyhow::Result<()> {
     let logo_icon = Icon::from_rgba(icon_buf, logo_png.info().width, logo_png.info().height)?;
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize {
-            width: 400,
-            height: 610,
+            width: 450,
+            height: 700,
         })
         // .with_resizable(false)
         .with_title("Geph")

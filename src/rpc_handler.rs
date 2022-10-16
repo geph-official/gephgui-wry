@@ -5,6 +5,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use crate::{
     daemon::{logfile_directory, DaemonConfig},
     mtbus::mt_enqueue,
@@ -67,20 +70,23 @@ pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
 fn handle_sync(params: (String, String)) -> anyhow::Result<String> {
     let (username, password) = params;
-    let mut child = Command::new("geph4-client")
-        .arg("sync")
+    let mut cmd = Command::new("geph4-client");
+    cmd.arg("sync")
         .arg("--username")
         .arg(username)
         .arg("--password")
         .arg(password)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+    let mut child = cmd.spawn()?;
     let mut e = String::new();
     child.stderr.take().unwrap().read_to_string(&mut e)?;
     let mut s = String::new();
     child.stdout.take().unwrap().read_to_string(&mut s)?;
+    child.wait()?;
     if !s.contains('{') {
         anyhow::bail!(e
             .lines()
@@ -88,7 +94,6 @@ fn handle_sync(params: (String, String)) -> anyhow::Result<String> {
             .map(|e| e.to_string())
             .context("cannot read anything from sync")?)
     }
-
     eprintln!("ess: {s}");
     Ok(s)
 }
@@ -102,11 +107,13 @@ fn handle_daemon_rpc(params: (String,)) -> anyhow::Result<String> {
 fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
     let params = params.0;
     // TODO cache this child process
-    let mut child = Command::new("geph4-client")
-        .arg("binder-proxy")
+    let mut cmd = Command::new("geph4-client");
+    cmd.arg("binder-proxy")
         .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()?;
+        .stdout(Stdio::piped());
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+    let mut child = cmd.spawn()?;
     eprintln!("params: {params}");
     let mut stdin = child.stdin.take().unwrap();
     std::thread::spawn(move || {
@@ -116,6 +123,7 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
     let mut s = String::new();
     child.stdout.take().unwrap().read_to_string(&mut s)?;
     eprintln!("{}", s);
+    child.wait()?;
     Ok(s)
 }
 
@@ -152,8 +160,8 @@ fn handle_set_conversion_factor(params: (f64,)) -> anyhow::Result<String> {
     mt_enqueue(move |webview| {
         webview.window().set_resizable(true);
         webview.window().set_inner_size(LogicalSize {
-            width: 400.0 * factor,
-            height: 610.0 * factor,
+            width: 450.0 * factor,
+            height: 700.0 * factor,
         });
         webview.window().set_resizable(false);
     });
