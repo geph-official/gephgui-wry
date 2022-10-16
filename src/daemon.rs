@@ -5,6 +5,10 @@ use crate::rpc_handler::DeathBoxInner;
 use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
+use std::{
+    path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 /// Configuration for starting the daemon
 #[derive(Deserialize, Debug)]
@@ -20,9 +24,27 @@ pub struct DaemonConfig {
 
 const DAEMON_PATH: &str = "geph4-client";
 
+/// Returns the directory where all the log files are found.
+pub fn logfile_directory() -> PathBuf {
+    let mut base = dirs::data_local_dir().expect("no local dir");
+    base.push("geph4-logs");
+    let _ = std::fs::create_dir_all(&base);
+    base
+}
+
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
     pub fn start(self) -> anyhow::Result<DeathBoxInner> {
+        let logfile_name = logfile_directory().tap_mut(|p| {
+            p.push(format!(
+                "geph4-logs-{}.txt",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+            ))
+        });
+        let log_file = std::fs::File::create(&logfile_name).context("cannot create log file")?;
         let common_args = Vec::new()
             .tap_mut(|v| {
                 v.push("--username".to_string());
@@ -58,6 +80,7 @@ impl DaemonConfig {
                 cmd.arg(DAEMON_PATH);
                 cmd.arg("connect");
                 cmd.args(&common_args);
+                cmd.stderr(log_file);
                 cmd.arg("--vpn-mode").arg("tun-route");
                 let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
                 Ok(Box::new(move || {
@@ -70,6 +93,7 @@ impl DaemonConfig {
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");
             cmd.args(&common_args);
+            cmd.stderr(log_file);
             #[cfg(windows)]
             cmd.creation_flags(0x08000000);
             let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;

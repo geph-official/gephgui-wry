@@ -52,12 +52,14 @@ window["NATIVE_GATE"] = {
     let sync_info = JSON.parse(
       await window.rpc.call("sync", username, password)
     );
-    return {
-      level: sync_info.user.subscription.level.toLowerCase(),
-      expires: sync_info.user.subscription
-        ? new Date(sync_info.user.subscription.expires_unix * 1000.0)
-        : null,
-    };
+    if (sync_info.user.subscription)
+      return {
+        level: sync_info.user.subscription.level.toLowerCase(),
+        expires: sync_info.user.subscription
+          ? new Date(sync_info.user.subscription.expires_unix * 1000.0)
+          : null,
+      };
+    else return { level: "free", expires: null };
   },
 
   daemon_rpc: async (method, args) => {
@@ -91,24 +93,11 @@ window["NATIVE_GATE"] = {
     return sync_info.exits;
   },
 
-  sync_app_list: async () => {
-    return [
-      {
-        id: "com.tencent.mm",
-        friendly_name: "WeChat",
-      },
-      {
-        id: "com.tencent.mmm",
-        friendly_name: "MeChat",
-      },
-    ];
+  async export_debug_pack() {
+    await window.rpc.call("export_logs");
   },
 
-  get_app_icon_url: async (id) => {
-    return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAM1BMVEWA2HEdwgUkwwBCxS5RxT1YyE5szGJ/0HiQ1YmZ2JSh2p2v363B5b7R68/b79js9+z///9HPSCbAAAAAXRSTlMAQObYZgAAAOxJREFUOMuFk1cWhCAMRWmhCYT9r3akSRv0fciRXEIKIYQQxuhfMUaSDtbK3AB91YeD5KIC4gp4y+n1QLmBu9iE+g8gMQ5ybAVgst/ECoS4SM+AypuVwuQNZyAHaMoSCi4nIEdw8ewChUmL3YEuvJQAfgTQSJfD8PoBxiRQ9pIFqIAd7X6koQC832GuKZxQC6X6kVSlDNVv7YVuNU67Mv/JnK5v3VTlFuuXmmMDaib6CLAYFAUF7gRIW96Ajlvjlze7dB42YH5blm5Ay+exbwAFP0SYgH0uwDrntFAeDkAfmjJ7X6P3PbwvSDL/AIYAHEpiL5B+AAAAAElFTkSuQmCC";
-  },
-
-  supports_app_whitelist: true,
+  supports_app_whitelist: false,
   supports_proxy_conf: true,
   supports_vpn_conf: true,
   native_info: {

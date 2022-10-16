@@ -1,11 +1,18 @@
 use std::{
+    fs::File,
     io::{Read, Write},
     process::{Command, Stdio},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{daemon::DaemonConfig, mtbus::mt_enqueue, pac::configure_proxy};
+use crate::{
+    daemon::{logfile_directory, DaemonConfig},
+    mtbus::mt_enqueue,
+    pac::{configure_proxy, deconfigure_proxy},
+};
 use anyhow::Context;
 
+use native_dialog::FileDialog;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::Deserialize;
@@ -32,6 +39,7 @@ pub fn global_rpc_handler(_window: &Window, req: RpcRequest) -> Option<RpcRespon
             "get_url" => handle_rpc(req, handle_get_url),
 
             "open_browser" => handle_rpc(req, handle_open_browser),
+            "export_logs" => handle_rpc(req, handle_export_logs),
             other => {
                 panic!("unrecognized RPC verb {}", other);
             }
@@ -128,6 +136,7 @@ fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
         eprintln!("***** STOPPING DAEMON *****");
         rd()?;
     }
+    deconfigure_proxy()?;
     Ok("".into())
 }
 
@@ -193,4 +202,34 @@ fn handle_rpc<I: DeserializeOwned, O: Serialize, F: FnOnce(I) -> anyhow::Result<
             }
         },
     }
+}
+
+fn handle_export_logs(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
+    mt_enqueue(move |_| {
+        let fallible_part = || {
+            let save_to = FileDialog::new()
+                .set_filename(&format!(
+                    "geph4-logs-export-{}.txt",
+                    SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
+                ))
+                .show_save_single_file();
+            if let Ok(Some(save_to)) = save_to {
+                let dir = logfile_directory();
+                let mut big_file = std::fs::File::create(&save_to)?;
+                for entry in std::fs::read_dir(&dir)? {
+                    let entry = entry?;
+                    let mut opened_file = File::open(&entry.path())?;
+                    std::io::copy(&mut opened_file, &mut big_file)?;
+                }
+                big_file.flush()?;
+            }
+            Ok::<_, anyhow::Error>(())
+        };
+        if let Err(err) = fallible_part() {
+            let _ = native_dialog::MessageDialog::new()
+                .set_text(&format!("{:?}", err))
+                .show_alert();
+        }
+    });
+    Ok("".into())
 }
