@@ -38,6 +38,11 @@ impl DaemonConfig {
                 }
             })
             .tap_mut(|v| {
+                if self.force_bridges {
+                    v.push("--use-bridges".into())
+                }
+            })
+            .tap_mut(|v| {
                 if self.listen_all {
                     v.push("--socks5-listen".into());
                     v.push("0.0.0.0:9909".into());
@@ -47,7 +52,20 @@ impl DaemonConfig {
             });
 
         if self.vpn_mode {
-            todo!()
+            #[cfg(target_os = "linux")]
+            {
+                let mut cmd = std::process::Command::new("pkexec");
+                cmd.arg(DAEMON_PATH);
+                cmd.arg("connect");
+                cmd.args(&common_args);
+                cmd.arg("--vpn-mode").arg("tun-route");
+                let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                Ok(Box::new(move || {
+                    child.kill()?;
+                    child.wait()?;
+                    Ok(())
+                }))
+            }
         } else {
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");

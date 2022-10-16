@@ -110,7 +110,7 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
-    if params.proxy_autoconf {
+    if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;
     }
     let mut rd = RUNNING_DAEMON.lock();
