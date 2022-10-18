@@ -95,7 +95,6 @@ fn wry_loop() -> anyhow::Result<()> {
     });
 }
 
-#[tracing::instrument]
 fn create_systray<T>(event_loop: &EventLoop<T>) -> anyhow::Result<SystemTray> {
     let mut tray_menu = ContextMenu::new();
     tray_menu.add_item(MenuItemAttributes::new("Open"));
@@ -116,7 +115,6 @@ fn create_systray<T>(event_loop: &EventLoop<T>) -> anyhow::Result<SystemTray> {
     }
 }
 
-#[tracing::instrument]
 async fn test(req: Request<()>) -> tide::Result {
     let url = req.url().path().trim_start_matches('/');
     if let Some(file) = FakeFs::get(url) {

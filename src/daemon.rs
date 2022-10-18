@@ -108,6 +108,10 @@ impl DaemonConfig {
                     Ok(())
                 }))
             }
+            #[cfg(target_os = "macos")]
+            {
+                anyhow::bail!("VPN mode not supported on macOS")
+            }
         } else {
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");
