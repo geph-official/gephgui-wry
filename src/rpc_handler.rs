@@ -15,7 +15,6 @@ use crate::{
 };
 use anyhow::Context;
 
-use native_dialog::FileDialog;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::Deserialize;
@@ -29,7 +28,7 @@ use wry::{
 
 /// JSON-RPC interface that talks to JavaScript.
 pub fn global_rpc_handler(_window: &Window, req: RpcRequest) -> Option<RpcResponse> {
-    tracing::debug!(req = format!("{:?}", req).as_str(), "received RPC request");
+    tracing::trace!(req = format!("{:?}", req).as_str(), "received RPC request");
     std::thread::spawn(move || {
         let result = match req.method.as_str() {
             "echo" => handle_rpc(req, handle_echo),
@@ -94,7 +93,7 @@ fn handle_sync(params: (String, String)) -> anyhow::Result<String> {
             .map(|e| e.to_string())
             .context("cannot read anything from sync")?)
     }
-    eprintln!("ess: {s}");
+
     Ok(s)
 }
 
@@ -219,13 +218,13 @@ fn handle_rpc<I: DeserializeOwned, O: Serialize, F: FnOnce(I) -> anyhow::Result<
 fn handle_export_logs(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     mt_enqueue(move |_| {
         let fallible_part = || {
-            let save_to = FileDialog::new()
-                .set_filename(&format!(
+            let save_to = rfd::FileDialog::new()
+                .set_file_name(&format!(
                     "geph4-logs-export-{}.txt",
                     SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
                 ))
-                .show_save_single_file();
-            if let Ok(Some(save_to)) = save_to {
+                .save_file();
+            if let Some(save_to) = save_to {
                 let dir = logfile_directory();
                 let mut big_file = std::fs::File::create(&save_to)?;
                 for entry in std::fs::read_dir(&dir)? {
@@ -238,9 +237,7 @@ fn handle_export_logs(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
             Ok::<_, anyhow::Error>(())
         };
         if let Err(err) = fallible_part() {
-            let _ = native_dialog::MessageDialog::new()
-                .set_text(&format!("{:?}", err))
-                .show_alert();
+            tracing::error!("cannot export logs: {:?}", err);
         }
     });
     Ok("".into())
