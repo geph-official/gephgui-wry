@@ -2,6 +2,7 @@ use std::{
     fs::File,
     io::{Read, Write},
     process::{Command, Stdio},
+    sync::atomic::{AtomicBool, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -127,11 +128,14 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
     Ok(s)
 }
 
+static PROXY_CONFIGURED: AtomicBool = AtomicBool::new(false);
+
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;
+        PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
     let mut rd = RUNNING_DAEMON.lock();
     if rd.is_none() {
@@ -148,7 +152,9 @@ fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
         eprintln!("***** STOPPING DAEMON *****");
         rd()?;
     }
-    deconfigure_proxy()?;
+    if PROXY_CONFIGURED.swap(false, Ordering::SeqCst) {
+        deconfigure_proxy()?;
+    }
     Ok("".into())
 }
 
@@ -217,29 +223,28 @@ fn handle_rpc<I: DeserializeOwned, O: Serialize, F: FnOnce(I) -> anyhow::Result<
 }
 
 fn handle_export_logs(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
-    mt_enqueue(move |_| {
-        let fallible_part = || {
-            let save_to = rfd::FileDialog::new()
-                .set_file_name(&format!(
-                    "geph4-logs-export-{}.txt",
-                    SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
-                ))
-                .save_file();
-            if let Some(save_to) = save_to {
-                let dir = logfile_directory();
-                let mut big_file = std::fs::File::create(&save_to)?;
-                for entry in std::fs::read_dir(&dir)? {
-                    let entry = entry?;
-                    let mut opened_file = File::open(&entry.path())?;
-                    std::io::copy(&mut opened_file, &mut big_file)?;
-                }
-                big_file.flush()?;
+    let save_to = rfd::AsyncFileDialog::new()
+        .set_file_name(&format!(
+            "geph4-logs-export-{}.txt",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        ))
+        .save_file();
+    smolscale::spawn(async move {
+        if let Some(save_to) = save_to.await {
+            let dir = logfile_directory();
+            let mut big_file = std::fs::File::create(&save_to.file_name())?;
+            for entry in std::fs::read_dir(&dir)? {
+                let entry = entry?;
+                let mut opened_file = File::open(&entry.path())?;
+                std::io::copy(&mut opened_file, &mut big_file)?;
             }
-            Ok::<_, anyhow::Error>(())
-        };
-        if let Err(err) = fallible_part() {
-            tracing::error!("cannot export logs: {:?}", err);
+            big_file.flush()?;
         }
-    });
+        Ok::<_, anyhow::Error>(())
+    })
+    .detach();
     Ok("".into())
 }
