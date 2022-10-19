@@ -1,8 +1,10 @@
 #[cfg(unix)]
 pub fn configure_proxy() -> anyhow::Result<()> {
+    use crate::SERVE_ADDR;
+
     let mut cmd = std::process::Command::new("pac")
         .arg("on")
-        .arg("http://127.0.0.1:9809/proxy.pac")
+        .arg(format!("http://{}/proxy.pac", SERVE_ADDR))
         .spawn()?;
     cmd.wait()?;
     Ok(())

@@ -127,6 +127,8 @@ async fn test(req: Request<()>) -> tide::Result {
             .tap_mut(|r| r.set_content_type(mime.first_or_octet_stream().as_ref()))
             .tap_mut(|r| r.set_body(file.data.to_vec()));
         Ok(resp)
+    } else if url.contains("proxy.pac") {
+        Ok("function FindProxyForURL(url, host){return 'PROXY 127.0.0.1:9910';}".into())
     } else {
         tracing::error!("NO SUCH embedded resource {}", url);
         Err(tide::Error::new(404, anyhow::anyhow!("not found")))
