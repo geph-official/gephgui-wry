@@ -12,6 +12,7 @@ use crate::{
     daemon::{logfile_directory, DaemonConfig},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
+    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use anyhow::Context;
 
@@ -159,8 +160,8 @@ fn handle_set_conversion_factor(params: (f64,)) -> anyhow::Result<String> {
     mt_enqueue(move |webview| {
         webview.window().set_resizable(true);
         webview.window().set_inner_size(LogicalSize {
-            width: 450.0 * factor,
-            height: 700.0 * factor,
+            width: WINDOW_WIDTH as f64 * factor,
+            height: WINDOW_HEIGHT as f64 * factor,
         });
         webview.window().set_resizable(false);
     });

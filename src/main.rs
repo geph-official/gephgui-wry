@@ -26,6 +26,9 @@ mod rpc_handler;
 use rpc_handler::{global_rpc_handler, RUNNING_DAEMON};
 const SERVE_ADDR: &str = "127.0.0.1:5678";
 
+const WINDOW_WIDTH: i32 = 350;
+const WINDOW_HEIGHT: i32 = 600;
+
 fn main() -> anyhow::Result<()> {
     config_logging();
     smolscale::spawn(async {
@@ -47,8 +50,8 @@ fn wry_loop() -> anyhow::Result<()> {
     let logo_icon = Icon::from_rgba(icon_buf, logo_png.info().width, logo_png.info().height)?;
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize {
-            width: 450,
-            height: 700,
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
         })
         // .with_resizable(false)
         .with_title("Geph")
