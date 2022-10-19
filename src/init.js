@@ -8,12 +8,12 @@ document.addEventListener("click", (e) => {
 });
 window.open = (url) => window.rpc.call("open_browser", url);
 
-// function convertRemToPixels(rem) {
-//   return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
-// }
+function convertRemToPixels(rem) {
+  return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
+}
 
 addEventListener("load", (_) => {
-  window["rpc"].call("set_conversion_factor", convertRemToPixels(1) / 16);
+  window["rpc"].call("set_conversion_factor", convertRemToPixels(1) / 15);
 });
 
 let running = false;
