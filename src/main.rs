@@ -26,7 +26,7 @@ mod rpc_handler;
 use rpc_handler::{global_rpc_handler, RUNNING_DAEMON};
 const SERVE_ADDR: &str = "127.0.0.1:5678";
 
-const WINDOW_WIDTH: i32 = 350;
+const WINDOW_WIDTH: i32 = 380;
 const WINDOW_HEIGHT: i32 = 600;
 
 fn main() -> anyhow::Result<()> {
