@@ -237,7 +237,12 @@ fn handle_export_logs(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
             let dir = logfile_directory();
             let mut big_file = std::fs::File::create(save_to.path())?;
             let mut entries = std::fs::read_dir(&dir)?.collect::<Result<Vec<_>, _>>()?;
-            entries.sort_by_key(|e| e.file_name());
+            entries.sort_by_key(|e| {
+                e.metadata()
+                    .and_then(|m| m.created())
+                    .map(|s| s.duration_since(UNIX_EPOCH).unwrap())
+                    .unwrap_or_default()
+            });
             for entry in std::fs::read_dir(&dir)? {
                 let entry = entry?;
                 let mut opened_file = File::open(&entry.path())?;
