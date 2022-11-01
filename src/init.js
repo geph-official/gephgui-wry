@@ -98,6 +98,7 @@ window["NATIVE_GATE"] = {
   },
 
   supports_app_whitelist: false,
+  supports_prc_whitelist: true,
   supports_proxy_conf: true,
   supports_vpn_conf: true,
   native_info: {
