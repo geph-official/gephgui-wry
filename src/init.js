@@ -50,7 +50,7 @@ window["NATIVE_GATE"] = {
   },
   sync_user_info: async (username, password) => {
     let sync_info = JSON.parse(
-      await window.rpc.call("sync", username, password)
+      await window.rpc.call("sync", username, password, false)
     );
     if (sync_info.user.subscription)
       return {
@@ -88,9 +88,13 @@ window["NATIVE_GATE"] = {
 
   sync_exits: async (username, password) => {
     let sync_info = JSON.parse(
-      await window.rpc.call("sync", username, password)
+      await window.rpc.call("sync", username, password, false)
     );
     return sync_info.exits;
+  },
+
+  async purge_caches(username, password) {
+    await window.rpc.call("sync", username, password, true);
   },
 
   async export_debug_pack() {

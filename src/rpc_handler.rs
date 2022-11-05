@@ -69,8 +69,8 @@ pub type DeathBoxInner = Box<dyn FnOnce() -> anyhow::Result<()> + Send + Sync + 
 
 pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
-fn handle_sync(params: (String, String)) -> anyhow::Result<String> {
-    let (username, password) = params;
+fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
+    let (username, password, force) = params;
     let mut cmd = Command::new("geph4-client");
     cmd.arg("sync")
         .arg("--username")
@@ -80,6 +80,9 @@ fn handle_sync(params: (String, String)) -> anyhow::Result<String> {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    if force {
+        cmd.arg("--force");
+    }
     #[cfg(windows)]
     cmd.creation_flags(0x08000000);
     let mut child = cmd.spawn()?;
