@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 
+use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
 use mtbus::mt_next;
 use tao::system_tray::{SystemTray, SystemTrayBuilder};
@@ -18,6 +19,7 @@ use wry::{
     webview::{WebContext, WebView, WebViewBuilder},
 };
 
+mod autoupdate;
 mod daemon;
 mod fakefs;
 mod mtbus;
@@ -31,6 +33,7 @@ const WINDOW_HEIGHT: i32 = 600;
 
 fn main() -> anyhow::Result<()> {
     config_logging();
+    smolscale::spawn(autoupdate_loop()).detach();
     smolscale::spawn(async {
         let mut app = tide::new();
         app.at("/*").get(test);
@@ -53,7 +56,6 @@ fn wry_loop() -> anyhow::Result<()> {
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
         })
-        // .with_resizable(false)
         .with_title("Geph")
         .with_window_icon(Some(logo_icon))
         .build(&event_loop)?;

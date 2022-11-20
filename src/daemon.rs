@@ -24,11 +24,44 @@ pub struct DaemonConfig {
 
 const DAEMON_PATH: &str = "geph4-client";
 
+/// Returns the daemon version.
+pub fn daemon_version() -> anyhow::Result<String> {
+    Ok(String::from_utf8_lossy(
+        &std::process::Command::new(DAEMON_PATH)
+            .arg("--version")
+            .output()?
+            .stdout,
+    )
+    .replace("geph4-client", "")
+    .trim()
+    .to_string())
+}
+
 /// Returns the directory where all the log files are found.
 pub fn logfile_directory() -> PathBuf {
     let mut base = dirs::data_local_dir().expect("no local dir");
     base.push("geph4-logs");
     let _ = std::fs::create_dir_all(&base);
+    // clean up all ancient logs
+    if let Ok(rd) = std::fs::read_dir(&base) {
+        let mut to_remove = vec![];
+        for file in rd.flatten() {
+            if let Ok(meta) = file.metadata() {
+                if meta
+                    .created()
+                    .ok()
+                    .and_then(|c| SystemTime::now().duration_since(c).ok())
+                    .map(|c| c.as_secs() > 86400)
+                    .unwrap_or_default()
+                {
+                    to_remove.push(file.path());
+                }
+            }
+        }
+        for r in to_remove {
+            let _ = std::fs::remove_file(r);
+        }
+    }
     base
 }
 
