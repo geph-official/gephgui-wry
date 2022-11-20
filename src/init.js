@@ -105,6 +105,7 @@ window["NATIVE_GATE"] = {
   supports_prc_whitelist: true,
   supports_proxy_conf: true,
   supports_vpn_conf: true,
+  supports_autoupdate: true,
   native_info: {
     platform_type: "linux",
     platform_details: "MockLinux Trololol",

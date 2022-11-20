@@ -11,7 +11,7 @@ pub async fn autoupdate_loop() {
     loop {
         let downloaders = vec![
             AutoupdateDownloader::new("https://sos-ch-dk-2.exo.io/utopia/geph-releases"),
-            AutoupdateDownloader::new("https://f001.backblazeb2.com/file/geph4-dl/geph-releases/"),
+            AutoupdateDownloader::new("https://f001.backblazeb2.com/file/geph4-dl/geph-releases"),
         ];
         let picked = &downloaders[rand::thread_rng().gen_range(0..downloaders.len())];
         let fallible_part = async {
