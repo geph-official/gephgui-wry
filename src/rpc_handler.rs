@@ -10,7 +10,7 @@ use std::{
 use std::os::windows::process::CommandExt;
 
 use crate::{
-    daemon::{logfile_directory, DaemonConfig},
+    daemon::{logfile_directory, DaemonConfig, DAEMON_VERSION},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
     WINDOW_HEIGHT, WINDOW_WIDTH,
@@ -44,6 +44,7 @@ pub fn global_rpc_handler(_window: &Window, req: RpcRequest) -> Option<RpcRespon
 
             "open_browser" => handle_rpc(req, handle_open_browser),
             "export_logs" => handle_rpc(req, handle_export_logs),
+            "version" => handle_rpc(req, |_: Vec<serde_json::Value>| Ok(DAEMON_VERSION.clone())),
             other => {
                 panic!("unrecognized RPC verb {}", other);
             }

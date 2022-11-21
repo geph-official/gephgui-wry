@@ -59,10 +59,16 @@ fn wry_loop() -> anyhow::Result<()> {
         .with_title("Geph")
         .with_window_icon(Some(logo_icon))
         .build(&event_loop)?;
+    let initjs = include_str!("init.js");
+
+    #[cfg(target_os = "macos")]
+    // horrifying HACK
+    let initjs = initjs.replace("supports_autoupdate: true", "supports_autoupdate: false");
+
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
-        .with_initialization_script(include_str!("init.js"))
+        .with_initialization_script(&initjs)
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
     let _tray = create_systray(&event_loop)?;

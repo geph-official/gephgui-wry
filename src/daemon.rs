@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tap::Tap;
 
@@ -23,6 +24,19 @@ pub struct DaemonConfig {
 }
 
 const DAEMON_PATH: &str = "geph4-client";
+
+pub static DAEMON_VERSION: Lazy<String> = Lazy::new(|| {
+    String::from_utf8_lossy(
+        &std::process::Command::new(DAEMON_PATH)
+            .arg("--version")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .replace("geph4-client", "")
+    .trim()
+    .to_string()
+});
 
 /// Returns the daemon version.
 pub fn daemon_version() -> anyhow::Result<String> {

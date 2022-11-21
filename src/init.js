@@ -106,9 +106,11 @@ window["NATIVE_GATE"] = {
   supports_proxy_conf: true,
   supports_vpn_conf: true,
   supports_autoupdate: true,
-  native_info: {
-    platform_type: "linux",
-    platform_details: "MockLinux Trololol",
-    daemon_version: "0.0.0-mock",
+  async get_native_info() {
+    return {
+      platform_type: "desktop",
+      platform_details: "Desktop",
+      version: await window.rpc.call("version"),
+    };
   },
 };
