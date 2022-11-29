@@ -1,3 +1,6 @@
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 #[cfg(unix)]
 pub fn configure_proxy() -> anyhow::Result<()> {
     use crate::SERVE_ADDR;
@@ -21,6 +24,7 @@ pub fn deconfigure_proxy() -> anyhow::Result<()> {
 pub fn configure_proxy() -> anyhow::Result<()> {
     let mut cmd = std::process::Command::new("winproxy-stripped")
         .arg("-proxy")
+        .creation_flags(0x08000000)
         .arg("http://127.0.0.1:9910")
         .spawn()?;
     cmd.wait()?;
@@ -31,6 +35,7 @@ pub fn configure_proxy() -> anyhow::Result<()> {
 pub fn deconfigure_proxy() -> anyhow::Result<()> {
     let mut cmd = std::process::Command::new("winproxy-stripped")
         .arg("-unproxy")
+        .creation_flags(0x08000000)
         .spawn()?;
     cmd.wait()?;
     Ok(())
