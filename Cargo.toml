@@ -8,6 +8,9 @@ edition = "2018"
 # [features]
 # ayatana = ["tao/ayatana"]
 
+[build-dependencies]
+static_vcruntime = "2.0"
+
 [dependencies]
 tracing = "0.1.28"
 tracing-subscriber = "0.2.24"
