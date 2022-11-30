@@ -48,6 +48,9 @@ is_elevated="0.1"
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
+
 
 [dependencies.wry]
 git = "https://github.com/tauri-apps/wry"
