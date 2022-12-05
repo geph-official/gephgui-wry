@@ -29,6 +29,7 @@ pub static DAEMON_VERSION: Lazy<String> = Lazy::new(|| {
     String::from_utf8_lossy(
         &std::process::Command::new(DAEMON_PATH)
             .arg("--version")
+            .creation_flags(0x08000000)
             .output()
             .unwrap()
             .stdout,
@@ -43,6 +44,7 @@ pub fn daemon_version() -> anyhow::Result<String> {
     Ok(String::from_utf8_lossy(
         &std::process::Command::new(DAEMON_PATH)
             .arg("--version")
+            .creation_flags(0x08000000)
             .output()?
             .stdout,
     )
