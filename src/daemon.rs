@@ -26,12 +26,13 @@ pub struct DaemonConfig {
 const DAEMON_PATH: &str = "geph4-client";
 
 pub static DAEMON_VERSION: Lazy<String> = Lazy::new(|| {
-    let mut cmd = std::process::Command::new(DAEMON_PATH).arg("--version");
+    let mut cmd = std::process::Command::new(DAEMON_PATH);
+    cmd.arg("--version");
 
     #[cfg(windows)]
     cmd.creation_flags(0x08000000);
 
-    String::from_utf8_lossy(&cmd.output()?.stdout)
+    String::from_utf8_lossy(&cmd.output().unwrap().stdout)
         .replace("geph4-client", "")
         .trim()
         .to_string()
