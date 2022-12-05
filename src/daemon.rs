@@ -26,31 +26,20 @@ pub struct DaemonConfig {
 const DAEMON_PATH: &str = "geph4-client";
 
 pub static DAEMON_VERSION: Lazy<String> = Lazy::new(|| {
-    String::from_utf8_lossy(
-        &std::process::Command::new(DAEMON_PATH)
-            .arg("--version")
-            .creation_flags(0x08000000)
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .replace("geph4-client", "")
-    .trim()
-    .to_string()
+    let mut cmd = std::process::Command::new(DAEMON_PATH).arg("--version");
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+
+    String::from_utf8_lossy(&cmd.output()?.stdout)
+        .replace("geph4-client", "")
+        .trim()
+        .to_string()
 });
 
 /// Returns the daemon version.
 pub fn daemon_version() -> anyhow::Result<String> {
-    Ok(String::from_utf8_lossy(
-        &std::process::Command::new(DAEMON_PATH)
-            .arg("--version")
-            .creation_flags(0x08000000)
-            .output()?
-            .stdout,
-    )
-    .replace("geph4-client", "")
-    .trim()
-    .to_string())
+    Ok(DAEMON_VERSION.clone())
 }
 
 /// Returns the directory where all the log files are found.

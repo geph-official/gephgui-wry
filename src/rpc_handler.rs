@@ -179,13 +179,11 @@ fn handle_set_conversion_factor(params: (f64,)) -> anyhow::Result<String> {
 }
 
 /// Handles a request to poll a particular URL
-#[tracing::instrument]
 fn handle_get_url(params: (String,)) -> anyhow::Result<String> {
     Ok(ureq::get(&params.0).call()?.into_string()?)
 }
 
 /// Handles a request to open the browser
-#[tracing::instrument]
 fn handle_open_browser(params: (String,)) -> anyhow::Result<String> {
     let _ = webbrowser::open(&params.0);
     Ok("".into())
