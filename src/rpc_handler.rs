@@ -10,7 +10,7 @@ use std::{
 use std::os::windows::process::CommandExt;
 
 use crate::{
-    daemon::{logfile_directory, DaemonConfig, DAEMON_VERSION},
+    daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
     WINDOW_HEIGHT, WINDOW_WIDTH,
@@ -227,7 +227,7 @@ fn handle_rpc<I: DeserializeOwned, O: Serialize, F: FnOnce(I) -> anyhow::Result<
 fn handle_export_logs(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     let save_to = rfd::AsyncFileDialog::new()
         .set_file_name(&format!(
-            "geph4-logs-export-{}.txt",
+            "geph4-logs-export-{}.db",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -236,21 +236,26 @@ fn handle_export_logs(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
         .save_file();
     smolscale::spawn(async move {
         if let Some(save_to) = save_to.await {
-            let dir = logfile_directory();
-            let mut big_file = std::fs::File::create(save_to.path())?;
-            let mut entries = std::fs::read_dir(&dir)?.collect::<Result<Vec<_>, _>>()?;
-            entries.sort_by_key(|e| {
-                e.metadata()
-                    .and_then(|m| m.created())
-                    .map(|s| s.duration_since(UNIX_EPOCH).unwrap())
-                    .unwrap_or_default()
-            });
-            for entry in std::fs::read_dir(&dir)? {
-                let entry = entry?;
-                let mut opened_file = File::open(&entry.path())?;
-                std::io::copy(&mut opened_file, &mut big_file)?;
+            let mut cmd = Command::new("geph4-client");
+            cmd.arg("debugpack")
+                .arg("--debugpack-path")
+                .arg(debugpack_path())
+                .arg("--export-to")
+                .arg(save_to.path())
+                .stdin(Stdio::piped())
+                .stderr(Stdio::piped());
+
+            let mut child = cmd.spawn()?;
+            let mut e = String::new();
+            child.stderr.take().unwrap().read_to_string(&mut e)?;
+            child.wait()?;
+            if !e.is_empty() {
+                anyhow::bail!(e
+                    .lines()
+                    .last()
+                    .map(|e| e.to_string())
+                    .context("export logs FAIL")?)
             }
-            big_file.flush()?;
         }
         Ok::<_, anyhow::Error>(())
     })

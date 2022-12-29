@@ -44,46 +44,15 @@ pub fn daemon_version() -> anyhow::Result<String> {
 }
 
 /// Returns the directory where all the log files are found.
-pub fn logfile_directory() -> PathBuf {
+pub fn debugpack_path() -> PathBuf {
     let mut base = dirs::data_local_dir().expect("no local dir");
-    base.push("geph4-logs");
-    let _ = std::fs::create_dir_all(&base);
-    // clean up all ancient logs
-    if let Ok(rd) = std::fs::read_dir(&base) {
-        let mut to_remove = vec![];
-        for file in rd.flatten() {
-            if let Ok(meta) = file.metadata() {
-                if meta
-                    .created()
-                    .ok()
-                    .and_then(|c| SystemTime::now().duration_since(c).ok())
-                    .map(|c| c.as_secs() > 86400)
-                    .unwrap_or_default()
-                {
-                    to_remove.push(file.path());
-                }
-            }
-        }
-        for r in to_remove {
-            let _ = std::fs::remove_file(r);
-        }
-    }
+    base.push("geph4-logs.db");
     base
 }
 
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
     pub fn start(self) -> anyhow::Result<DeathBoxInner> {
-        let logfile_name = logfile_directory().tap_mut(|p| {
-            p.push(format!(
-                "geph4-logs-{}.txt",
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-            ))
-        });
-        let log_file = std::fs::File::create(&logfile_name).context("cannot create log file")?;
         let common_args = Vec::new()
             .tap_mut(|v| {
                 v.push("--username".to_string());
@@ -92,6 +61,8 @@ impl DaemonConfig {
                 v.push(self.password.clone());
                 v.push("--exit-server".into());
                 v.push(self.exit_hostname.clone());
+                v.push("--debugpack-path".into());
+                v.push(debugpack_path().to_string_lossy().to_string());
             })
             .tap_mut(|v| {
                 if self.prc_whitelist {
@@ -119,7 +90,6 @@ impl DaemonConfig {
                 cmd.arg(DAEMON_PATH);
                 cmd.arg("connect");
                 cmd.args(&common_args);
-                cmd.stderr(log_file);
                 cmd.arg("--vpn-mode").arg("tun-route");
                 let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
                 Ok(Box::new(move || {
@@ -155,7 +125,6 @@ impl DaemonConfig {
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");
             cmd.args(&common_args);
-            cmd.stderr(log_file);
             #[cfg(windows)]
             cmd.creation_flags(0x08000000);
             let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;

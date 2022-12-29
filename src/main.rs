@@ -3,7 +3,10 @@
 use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
 use mtbus::mt_next;
+
+#[cfg(feature = "tray")]
 use tao::system_tray::{SystemTray, SystemTrayBuilder};
+
 use tap::Tap;
 use tide::Request;
 use tracing::Level;
@@ -71,7 +74,10 @@ fn wry_loop() -> anyhow::Result<()> {
         .with_initialization_script(&initjs)
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
+
+    #[cfg(feature = "tray")]
     let _tray = create_systray(&event_loop)?;
+
     let evt_proxy = event_loop.create_proxy();
     std::thread::spawn(move || loop {
         let evt = mt_next();
@@ -106,6 +112,7 @@ fn wry_loop() -> anyhow::Result<()> {
     });
 }
 
+#[cfg(feature = "tray")]
 fn create_systray<T>(event_loop: &EventLoop<T>) -> anyhow::Result<SystemTray> {
     let mut tray_menu = ContextMenu::new();
     tray_menu.add_item(MenuItemAttributes::new("Open"));
