@@ -8,6 +8,7 @@ use std::{collections::HashMap, time::Duration};
 use crate::{daemon::daemon_version, mtbus::mt_enqueue};
 
 pub async fn autoupdate_loop() {
+    eprintln!("enter autoupdate loop");
     loop {
         let downloaders = vec![
             AutoupdateDownloader::new("https://sos-ch-dk-2.exo.io/utopia/geph-releases"),

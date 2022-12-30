@@ -1,5 +1,7 @@
 #![windows_subsystem = "windows"]
 
+use std::time::Duration;
+
 use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
 use mtbus::mt_next;
@@ -37,6 +39,7 @@ const WINDOW_HEIGHT: i32 = 600;
 fn main() -> anyhow::Result<()> {
     config_logging();
     smolscale::spawn(autoupdate_loop()).detach();
+    // std::thread::sleep(Duration::from_secs(10));
     smolscale::spawn(async {
         let mut app = tide::new();
         app.at("/*").get(test);
@@ -47,6 +50,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn wry_loop() -> anyhow::Result<()> {
+    eprintln!("entering wry loop");
     let logo_png = png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref());
     let mut logo_png = logo_png.read_info()?;
     let mut icon_buf = vec![0; logo_png.output_buffer_size()];

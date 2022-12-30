@@ -21,7 +21,7 @@ pub struct DaemonConfig {
     pub vpn_mode: bool,
     pub prc_whitelist: bool,
     pub listen_all: bool,
-}
+} 
 
 const DAEMON_PATH: &str = "geph4-client";
 
@@ -107,7 +107,6 @@ impl DaemonConfig {
                 cmd.arg("connect");
                 cmd.args(&common_args);
                 cmd.arg("--vpn-mode").arg("windivert");
-                cmd.stderr(log_file);
                 #[cfg(windows)]
                 cmd.creation_flags(0x08000000);
                 let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
