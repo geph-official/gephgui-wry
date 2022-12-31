@@ -70,7 +70,7 @@ fn wry_loop() -> anyhow::Result<()> {
 
     #[cfg(target_os = "macos")]
     // horrifying HACK
-    let initjs = initjs.replace("supports_autoupdate: true", "supports_autoupdate: false");
+    let initjs = initjs.replace("supports_autoupdate: true", "supports_autoupdate: false").replace("supports_vpn_conf: true", "supports_vpn_conf: false");
 
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
