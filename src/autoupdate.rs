@@ -20,10 +20,9 @@ pub async fn autoupdate_loop() {
             if let Some(update) = update_avail {
                 let version = update.version.clone();
                 let (send, recv) = smol::channel::bounded(1);
-                // unfortunately native_dialog here is buggy and there's little we can do about it :(
-                #[cfg(not(target_os = "macos"))]
+
                 mt_enqueue(move |wv| {
-                    let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？")).show_confirm();
+                    let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？")).set_owner(wv.window()).show_confirm();
                     let _ = send.try_send(res.unwrap_or_default());
                 });
                 let decision_made = recv.recv().await?;
@@ -92,7 +91,7 @@ impl AutoupdateDownloader {
             .clone();
         let remote_ver = semver::Version::parse(&metadata.version)?;
         let our_ver = semver::Version::parse(&daemon_version()?)?;
-        if remote_ver > our_ver {
+        if remote_ver > our_ver || std::env::var("GEPH_FORCE_UPDATE").is_ok() {
             Ok(Some(metadata))
         } else {
             Ok(None)

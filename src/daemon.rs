@@ -6,10 +6,7 @@ use crate::rpc_handler::DeathBoxInner;
 use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use std::{
-    path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::path::PathBuf;
 
 /// Configuration for starting the daemon
 #[derive(Deserialize, Debug)]
@@ -21,7 +18,7 @@ pub struct DaemonConfig {
     pub vpn_mode: bool,
     pub prc_whitelist: bool,
     pub listen_all: bool,
-} 
+}
 
 const DAEMON_PATH: &str = "geph4-client";
 

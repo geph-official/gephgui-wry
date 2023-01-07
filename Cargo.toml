@@ -46,7 +46,7 @@ serde_yaml = "0.9.14"
 semver = "1.0.14"
 smol-timeout = "0.6.0"
 rand = "0.8.5"
-native-dialog = "0.6.3"
+native-dialog = "0.5"
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"
@@ -54,8 +54,6 @@ is_elevated= "0.1.2"
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.12"
 
-[target.'cfg(all(windows, target_env = "msvc"))']
-rustflags = ["-C", "target-feature=+crt-static"]
 
 
 [dependencies.wry]
