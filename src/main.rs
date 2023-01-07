@@ -68,6 +68,10 @@ fn wry_loop() -> anyhow::Result<()> {
         .build(&event_loop)?;
     let initjs = include_str!("init.js");
 
+    #[cfg(target_os = "macos")]
+    // horrifying HACK
+    let initjs = initjs.replace("supports_vpn_conf: true", "supports_vpn_conf: false");
+
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)

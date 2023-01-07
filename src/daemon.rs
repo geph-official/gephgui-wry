@@ -18,6 +18,7 @@ pub struct DaemonConfig {
     pub vpn_mode: bool,
     pub prc_whitelist: bool,
     pub listen_all: bool,
+    pub force_protocol: Option<String>,
 }
 
 const DAEMON_PATH: &str = "geph4-client";
@@ -58,6 +59,10 @@ impl DaemonConfig {
                 v.push(self.password.clone());
                 v.push("--exit-server".into());
                 v.push(self.exit_hostname.clone());
+                if let Some(force) = self.force_protocol.clone() {
+                    v.push("--force-protocol".into());
+                    v.push(force);
+                }
                 v.push("--debugpack-path".into());
                 v.push(debugpack_path().to_string_lossy().to_string());
             })
