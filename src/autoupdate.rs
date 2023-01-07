@@ -1,6 +1,7 @@
 use anyhow::Context;
 use isahc::AsyncReadResponseExt;
 use rand::Rng;
+use rfd::{MessageButtons, MessageLevel};
 use serde::{Deserialize, Serialize};
 use smol_timeout::TimeoutExt;
 use std::{collections::HashMap, time::Duration};
@@ -19,13 +20,13 @@ pub async fn autoupdate_loop() {
             let update_avail = picked.update_available().await?;
             if let Some(update) = update_avail {
                 let version = update.version.clone();
-                let (send, recv) = smol::channel::bounded(1);
-
-                mt_enqueue(move |wv| {
-                    let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？")).set_owner(wv.window()).show_confirm();
-                    let _ = send.try_send(res.unwrap_or_default());
-                });
-                let decision_made = recv.recv().await?;
+                let decision_made: bool = rfd::AsyncMessageDialog::new()
+                .set_buttons(MessageButtons::YesNo)
+                .set_level(MessageLevel::Info)
+                    .set_title("Update available / 可用更新")
+                    .set_description(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？"))
+                    .show()
+                    .await;
                 if decision_made {
                     // TODO do something more intelligent
                     let url = picked.resolve_url(&update);
