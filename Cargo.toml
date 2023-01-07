@@ -35,7 +35,7 @@ dirs = "4.0.0"
 tempfile = "3.2.0"
 png = "0.17.2"
 # native-dialog = "0.5.5"
-rfd={ version = "0.10.0", default-features = false, features = ["xdg-portal"] }
+rfd={ version = "0.6" }
 ureq = "2.3.0"
 flume = "0.10.14"
 webbrowser = "0.5.5"
@@ -79,6 +79,12 @@ features = ["h1-server"]
 
 [profile.release]
 panic = "abort"
+opt-level='z'
+# debug=0
+lto=true
+strip=true
+codegen-units = 1
 
 [profile.dev]
 panic = "abort"
+

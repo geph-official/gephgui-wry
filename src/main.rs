@@ -1,7 +1,5 @@
 #![windows_subsystem = "windows"]
 
-
-
 use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
 use mtbus::mt_next;
