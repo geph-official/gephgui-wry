@@ -29,7 +29,7 @@ pub static DAEMON_VERSION: Lazy<String> = Lazy::new(|| {
 
     #[cfg(windows)]
     cmd.creation_flags(0x08000000);
-
+ 
     String::from_utf8_lossy(&cmd.output().unwrap().stdout)
         .replace("geph4-client", "")
         .trim()

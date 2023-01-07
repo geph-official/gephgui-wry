@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 
-use std::time::Duration;
+
 
 use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
@@ -18,7 +18,6 @@ use wry::{
         dpi::LogicalSize,
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop},
-        menu::{ContextMenu, MenuItemAttributes},
         window::{Icon, WindowBuilder},
     },
     webview::{WebContext, WebView, WebViewBuilder},
@@ -75,7 +74,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
-        .with_initialization_script(&initjs)
+        .with_initialization_script(initjs)
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
@@ -118,6 +117,8 @@ fn wry_loop() -> anyhow::Result<()> {
 
 #[cfg(feature = "tray")]
 fn create_systray<T>(event_loop: &EventLoop<T>) -> anyhow::Result<SystemTray> {
+    use wry::application::menu::ContextMenu;
+    use wry::application::menu::MenuItemAttributes;
     let mut tray_menu = ContextMenu::new();
     tray_menu.add_item(MenuItemAttributes::new("Open"));
     let icon = include_bytes!("logo-naked.ico").to_vec();

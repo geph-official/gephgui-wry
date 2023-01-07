@@ -1,5 +1,4 @@
 use std::{
-    fs::File,
     io::{Read, Write},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
