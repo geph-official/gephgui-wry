@@ -1,7 +1,7 @@
 use anyhow::Context;
 use isahc::AsyncReadResponseExt;
 use rand::Rng;
-use rfd::{MessageButtons, MessageLevel};
+
 use serde::{Deserialize, Serialize};
 use smol_timeout::TimeoutExt;
 use std::{collections::HashMap, time::Duration};
@@ -31,13 +31,16 @@ pub async fn autoupdate_loop() {
                     recv.recv().await?
                 };
                 #[cfg(target_os = "macos")]
-                let decision_made: bool = rfd::AsyncMessageDialog::new()
+                let decision_made: bool = {
+                    use rfd::{MessageButtons, MessageLevel};
+                    rfd::AsyncMessageDialog::new()
                 .set_buttons(MessageButtons::YesNo)
                 .set_level(MessageLevel::Info)
                     .set_title("Update available / 可用更新")
                     .set_description(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？"))
                     .show()
-                    .await;
+                    .await
+                };
                 if decision_made {
                     // TODO do something more intelligent
                     let url = picked.resolve_url(&update);

@@ -2,7 +2,6 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tap::Tap;
 
-use crate::rpc_handler::DeathBoxInner;
 use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -29,7 +28,7 @@ pub static DAEMON_VERSION: Lazy<String> = Lazy::new(|| {
 
     #[cfg(windows)]
     cmd.creation_flags(0x08000000);
- 
+
     String::from_utf8_lossy(&cmd.output().unwrap().stdout)
         .replace("geph4-client", "")
         .trim()
@@ -50,7 +49,7 @@ pub fn debugpack_path() -> PathBuf {
 
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
-    pub fn start(self) -> anyhow::Result<DeathBoxInner> {
+    pub fn start(self) -> anyhow::Result<std::process::Child> {
         let common_args = Vec::new()
             .tap_mut(|v| {
                 v.push("--username".to_string());
@@ -93,12 +92,8 @@ impl DaemonConfig {
                 cmd.arg("connect");
                 cmd.args(&common_args);
                 cmd.arg("--vpn-mode").arg("tun-route");
-                let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(Box::new(move || {
-                    child.kill()?;
-                    child.wait()?;
-                    Ok(())
-                }))
+                let child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                Ok(child)
             }
             #[cfg(target_os = "windows")]
             {
@@ -112,11 +107,7 @@ impl DaemonConfig {
                 #[cfg(windows)]
                 cmd.creation_flags(0x08000000);
                 let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(Box::new(move || {
-                    child.kill()?;
-                    child.wait()?;
-                    Ok(())
-                }))
+                Ok(child)
             }
             #[cfg(target_os = "macos")]
             {
@@ -128,12 +119,9 @@ impl DaemonConfig {
             cmd.args(&common_args);
             #[cfg(windows)]
             cmd.creation_flags(0x08000000);
-            let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
-            Ok(Box::new(move || {
-                child.kill()?;
-                child.wait()?;
-                Ok(())
-            }))
+            let child = cmd.spawn().context("cannot spawn non-VPN child")?;
+            eprintln!("*** CHILD ***");
+            Ok(child)
         }
     }
 }

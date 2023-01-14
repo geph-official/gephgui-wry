@@ -2,7 +2,7 @@ use std::{
     io::{Read, Write},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(windows)]
@@ -64,8 +64,7 @@ struct DaemonConfigPlus {
     proxy_autoconf: bool,
 }
 
-pub type DeathBox = Mutex<Option<DeathBoxInner>>;
-pub type DeathBoxInner = Box<dyn FnOnce() -> anyhow::Result<()> + Send + Sync + 'static>;
+pub type DeathBox = Mutex<Option<std::process::Child>>;
 
 pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
@@ -145,15 +144,29 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
         let daemon = params.daemon_conf.start().context("cannot start daemon")?;
         *rd = Some(daemon);
     }
+    std::thread::spawn(move || loop {
+        {
+            let mut daemon = RUNNING_DAEMON.lock();
+            if let Some(d) = daemon.as_mut() {
+                if let Ok(Some(_)) = d.try_wait() {
+                    std::thread::spawn(move || handle_stop_daemon(vec![]));
+                }
+            } else {
+                return;
+            }
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    });
     Ok("".into())
 }
 
 /// Handles a request to stop the daemon
 fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     let mut rd = RUNNING_DAEMON.lock();
-    if let Some(rd) = rd.take() {
+    if let Some(mut rd) = rd.take() {
         eprintln!("***** STOPPING DAEMON *****");
-        rd()?;
+        rd.kill()?;
+        rd.wait()?;
     }
     if PROXY_CONFIGURED.swap(false, Ordering::SeqCst) {
         deconfigure_proxy()?;
