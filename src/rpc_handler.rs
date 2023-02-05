@@ -220,7 +220,7 @@ fn handle_rpc<I: DeserializeOwned, O: Serialize, F: FnOnce(I) -> anyhow::Result<
         Ok(res) => match f(res) {
             Err(err) => {
                 let err = format!("{:?}", err);
-                tracing::error!(
+                tracing::trace!(
                     method = req.method.as_str(),
                     err = err.as_str(),
                     "RPC call returned error"

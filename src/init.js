@@ -104,6 +104,7 @@ window["NATIVE_GATE"] = {
   supports_app_whitelist: false,
   supports_prc_whitelist: true,
   supports_proxy_conf: true,
+  supports_listen_all: true,
   supports_vpn_conf: true,
   supports_autoupdate: true,
   async get_native_info() {
