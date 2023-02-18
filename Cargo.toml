@@ -8,8 +8,6 @@ edition = "2018"
 # [features]
 # ayatana = ["tao/ayatana"]
 
-[build-dependencies]
-static_vcruntime = "2.0.0"
 
 [features]
 tray=["tao/tray", "wry/tray"]
