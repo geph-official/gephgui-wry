@@ -9,7 +9,7 @@ use std::{
 use std::os::windows::process::CommandExt;
 
 use crate::{
-    daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION},
+    daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION, GEPH_RPC_KEY},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
     WINDOW_HEIGHT, WINDOW_WIDTH,
@@ -102,9 +102,11 @@ fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
 }
 
 fn handle_daemon_rpc(params: (String,)) -> anyhow::Result<String> {
-    Ok(ureq::post("http://127.0.0.1:9809")
-        .send_string(&params.0)?
-        .into_string()?)
+    Ok(
+        ureq::post(&format!("http://127.0.0.1:9809/{}", GEPH_RPC_KEY.clone()))
+            .send_string(&params.0)?
+            .into_string()?,
+    )
 }
 
 fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {

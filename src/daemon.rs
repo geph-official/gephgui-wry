@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use rand::Rng;
 use serde::Deserialize;
 use tap::Tap;
 
@@ -6,6 +7,10 @@ use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
+
+/// The daemon RPC key
+pub static GEPH_RPC_KEY: Lazy<String> =
+    Lazy::new(|| format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>()));
 
 /// Configuration for starting the daemon
 #[derive(Deserialize, Debug)]
@@ -50,6 +55,7 @@ pub fn debugpack_path() -> PathBuf {
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
     pub fn start(self) -> anyhow::Result<std::process::Child> {
+        std::env::set_var("GEPH_RPC_KEY", GEPH_RPC_KEY.clone());
         let common_args = Vec::new()
             .tap_mut(|v| {
                 v.push("--username".to_string());
