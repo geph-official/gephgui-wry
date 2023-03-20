@@ -70,7 +70,7 @@ window["NATIVE_GATE"] = {
     if (resp.error) {
       throw resp.error.message;
     }
-    console.log("DAEMON RESULT", resp);
+//    console.log("DAEMON RESULT", resp);
     return resp.result;
   },
 
