@@ -99,8 +99,8 @@ impl DaemonConfig {
                 let mut cmd = std::process::Command::new("pkexec");
                 cmd.arg(DAEMON_PATH);
                 cmd.arg("connect");
-                cmd.args(&common_args);
                 cmd.arg("--vpn-mode").arg("tun-route");
+                cmd.args(&common_args);
                 let child = cmd.spawn().context("cannot spawn non-VPN child")?;
                 Ok(child)
             }
@@ -111,8 +111,8 @@ impl DaemonConfig {
                 }
                 let mut cmd = std::process::Command::new(DAEMON_PATH);
                 cmd.arg("connect");
-                cmd.args(&common_args);
                 cmd.arg("--vpn-mode").arg("windivert");
+                cmd.args(&common_args);
                 #[cfg(windows)]
                 cmd.creation_flags(0x08000000);
                 let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
