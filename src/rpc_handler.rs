@@ -72,16 +72,17 @@ fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
     let (username, password, force) = params;
     let mut cmd = Command::new("geph4-client");
     cmd.arg("sync")
-        .arg("--username")
-        .arg(username)
-        .arg("--password")
-        .arg(password)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     if force {
         cmd.arg("--force");
     }
+    cmd.arg("auth-password")
+        .arg("--username")
+        .arg(username)
+        .arg("--password")
+        .arg(password);
     #[cfg(windows)]
     cmd.creation_flags(0x08000000);
     let mut child = cmd.spawn()?;

@@ -58,10 +58,6 @@ impl DaemonConfig {
         std::env::set_var("GEPH_RPC_KEY", GEPH_RPC_KEY.clone());
         let common_args = Vec::new()
             .tap_mut(|v| {
-                v.push("--username".to_string());
-                v.push(self.username.clone());
-                v.push("--password".into());
-                v.push(self.password.clone());
                 v.push("--exit-server".into());
                 v.push(self.exit_hostname.clone());
                 if let Some(force) = self.force_protocol.clone() {
@@ -88,6 +84,13 @@ impl DaemonConfig {
                     v.push("--http-listen".into());
                     v.push("0.0.0.0:9910".into());
                 }
+            })
+            .tap_mut(|v| {
+                v.push("auth-password".to_string());
+                v.push("--username".to_string());
+                v.push(self.username.clone());
+                v.push("--password".into());
+                v.push(self.password.clone());
             });
 
         if self.vpn_mode {
