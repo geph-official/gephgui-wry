@@ -30,7 +30,9 @@ use wry::{
 /// JSON-RPC interface that talks to JavaScript.
 pub fn global_rpc_handler(_window: &Window, req: RpcRequest) -> Option<RpcResponse> {
     tracing::trace!(req = format!("{:?}", req).as_str(), "received RPC request");
+    static GLOBAL_LOCK: Mutex<()> = Mutex::new(());
     std::thread::spawn(move || {
+        let _guard = GLOBAL_LOCK.lock(); // prevents thundering-herd effects when JS timers stagger
         let result = match req.method.as_str() {
             "echo" => handle_rpc(req, handle_echo),
             "binder_rpc" => handle_rpc(req, handle_binder_rpc),
