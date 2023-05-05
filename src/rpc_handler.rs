@@ -2,7 +2,7 @@ use std::{
     io::{Read, Write},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(windows)]
@@ -30,9 +30,9 @@ use wry::{
 /// JSON-RPC interface that talks to JavaScript.
 pub fn global_rpc_handler(_window: &Window, req: RpcRequest) -> Option<RpcResponse> {
     tracing::trace!(req = format!("{:?}", req).as_str(), "received RPC request");
-    static GLOBAL_LOCK: Mutex<()> = Mutex::new(());
     std::thread::spawn(move || {
-        let _guard = GLOBAL_LOCK.lock(); // prevents thundering-herd effects when JS timers stagger
+        let start = Instant::now();
+        let method = req.method.clone();
         let result = match req.method.as_str() {
             "echo" => handle_rpc(req, handle_echo),
             "binder_rpc" => handle_rpc(req, handle_binder_rpc),
@@ -50,6 +50,7 @@ pub fn global_rpc_handler(_window: &Window, req: RpcRequest) -> Option<RpcRespon
                 panic!("unrecognized RPC verb {}", other);
             }
         };
+        tracing::debug!("{method} took {:?}", start.elapsed());
         mt_enqueue(move |wv| wv.evaluate_script(&result).unwrap());
     });
     None
@@ -71,6 +72,7 @@ pub type DeathBox = Mutex<Option<std::process::Child>>;
 pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
 fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
+    println!("handle_sync {:?}", params);
     let (username, password, force) = params;
     let mut cmd = Command::new("geph4-client");
     cmd.arg("sync")
