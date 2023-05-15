@@ -1,5 +1,7 @@
 use std::{
+    fs::File,
     io::{Read, Write},
+    path::PathBuf,
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -60,6 +62,35 @@ fn handle_echo(params: (String,)) -> anyhow::Result<String> {
     Ok(params.0)
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum AuthKind {
+    Password { username: String, password: String },
+
+    Signature { sk: String },
+}
+
+impl AuthKind {
+    fn to_flags(self) -> anyhow::Result<Vec<String>> {
+        match self {
+            AuthKind::Password { username, password } => Ok(vec![
+                "auth-password".to_string(),
+                "--username".to_string(),
+                username,
+                "--password".to_string(),
+                password,
+            ]),
+            AuthKind::Signature { sk } => {
+                store_secret(sk)?;
+                Ok(vec![
+                    "auth-keypair".to_string(),
+                    "--sk-path".to_string(),
+                    secret_path().to_string_lossy().to_string(),
+                ])
+            }
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
 struct DaemonConfigPlus {
     #[serde(flatten)]
@@ -71,9 +102,23 @@ pub type DeathBox = Mutex<Option<std::process::Child>>;
 
 pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
-fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
-    println!("handle_sync {:?}", params);
-    let (username, password, force) = params;
+fn secret_path() -> PathBuf {
+    let mut cache_dir = dirs::cache_dir().unwrap();
+    cache_dir.push("geph4-credentials");
+
+    cache_dir
+}
+
+fn store_secret(secret: String) -> anyhow::Result<()> {
+    let path = secret_path();
+    let mut file = File::create(&path)?;
+
+    write!(file, "{}", secret)?;
+    Ok(())
+}
+
+fn handle_sync(params: (AuthKind, bool)) -> anyhow::Result<String> {
+    let (auth_kind, force) = params;
     let mut cmd = Command::new("geph4-client");
     cmd.arg("sync")
         .stdin(Stdio::piped())
@@ -82,11 +127,9 @@ fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
     if force {
         cmd.arg("--force");
     }
-    cmd.arg("auth-password")
-        .arg("--username")
-        .arg(username)
-        .arg("--password")
-        .arg(password);
+    auth_kind.to_flags()?.iter().for_each(|flag| {
+        cmd.arg(flag);
+    });
     #[cfg(windows)]
     cmd.creation_flags(0x08000000);
     let mut child = cmd.spawn()?;

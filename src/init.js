@@ -48,9 +48,9 @@ window["NATIVE_GATE"] = {
       return false;
     }
   },
-  sync_user_info: async (username, password) => {
+  sync_user_info: async (auth_kind) => {
     let sync_info = JSON.parse(
-      await window.rpc.call("sync", username, password, false)
+      await window.rpc.call("sync", auth_kind, false)
     );
     if (sync_info.user.subscription)
       return {
@@ -86,15 +86,15 @@ window["NATIVE_GATE"] = {
     return resp.result;
   },
 
-  sync_exits: async (username, password) => {
+  sync_exits: async (auth_kind) => {
     let sync_info = JSON.parse(
-      await window.rpc.call("sync", username, password, false)
+      await window.rpc.call("sync", auth_kind, false)
     );
     return sync_info.exits;
   },
 
-  async purge_caches(username, password) {
-    await window.rpc.call("sync", username, password, true);
+  async purge_caches(auth_kind) {
+    await window.rpc.call("sync", auth_kind, true);
   },
 
   async export_debug_pack() {
