@@ -105,6 +105,7 @@ pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 fn secret_path() -> PathBuf {
     let mut cache_dir = dirs::cache_dir().unwrap();
     cache_dir.push("geph4-credentials");
+    cache_dir.push("secret");
 
     cache_dir
 }
