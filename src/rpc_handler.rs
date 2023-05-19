@@ -1,5 +1,7 @@
 use std::{
+    fs::File,
     io::{BufRead, BufReader, Read, Write},
+    path::PathBuf,
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -12,7 +14,6 @@ use crate::{
     daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION, GEPH_RPC_KEY},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
-    utils::RpcAuthKind,
     WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use anyhow::Context;
@@ -21,7 +22,6 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::Deserialize;
 
-use crate::utils::to_flags;
 use tide::convert::{DeserializeOwned, Serialize};
 use wry::application::dpi::LogicalSize;
 use wry::{
@@ -59,6 +59,35 @@ fn handle_echo(params: (String,)) -> anyhow::Result<String> {
     Ok(params.0)
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum AuthKind {
+    Password { username: String, password: String },
+
+    Signature { sk: String },
+}
+
+impl AuthKind {
+    pub fn to_flags(self) -> anyhow::Result<Vec<String>> {
+        match self {
+            AuthKind::Password { username, password } => Ok(vec![
+                "auth-password".to_string(),
+                "--username".to_string(),
+                username,
+                "--password".to_string(),
+                password,
+            ]),
+            AuthKind::Signature { sk } => {
+                store_secret(sk)?;
+                Ok(vec![
+                    "auth-keypair".to_string(),
+                    "--sk-path".to_string(),
+                    secret_path().to_string_lossy().to_string(),
+                ])
+            }
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
 struct DaemonConfigPlus {
     #[serde(flatten)]
@@ -70,19 +99,38 @@ pub type DeathBox = Mutex<Option<std::process::Child>>;
 
 pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
-fn handle_sync(params: (RpcAuthKind, bool)) -> anyhow::Result<String> {
-    let (credentials, force) = params;
-    let auth_flags = to_flags(credentials)?;
+fn secret_path() -> PathBuf {
+    let mut cache_dir = dirs::cache_dir().unwrap();
+    cache_dir.push("geph4-credentials");
+    cache_dir.push("secret");
+
+    cache_dir
+}
+
+fn store_secret(secret: String) -> anyhow::Result<()> {
+    let path = secret_path();
+    let mut file = File::create(&path)?;
+
+    write!(file, "{}", secret)?;
+    Ok(())
+}
+
+fn handle_sync(params: (AuthKind, bool)) -> anyhow::Result<String> {
+    let (auth_kind, force) = params;
+    let auth_flags = auth_kind.to_flags()?;
 
     let mut cmd = Command::new("geph4-client");
     cmd.arg("sync")
-        .args(auth_flags)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     if force {
         cmd.arg("--force");
     }
+    auth_flags.iter().for_each(|flag| {
+        cmd.arg(flag);
+    });
+
     #[cfg(windows)]
     cmd.creation_flags(0x08000000);
     let mut child = cmd.spawn()?;

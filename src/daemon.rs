@@ -8,7 +8,7 @@ use anyhow::Context;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 
-use crate::utils::{to_flags, RpcAuthKind};
+use crate::rpc_handler::AuthKind;
 
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> =
@@ -17,7 +17,7 @@ pub static GEPH_RPC_KEY: Lazy<String> =
 /// Configuration for starting the daemon
 #[derive(Deserialize, Debug)]
 pub struct DaemonConfig {
-    pub auth: RpcAuthKind,
+    pub auth: AuthKind,
     pub exit_hostname: String,
     pub force_bridges: bool,
     pub vpn_mode: bool,
@@ -61,7 +61,7 @@ impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
     pub fn start(self) -> anyhow::Result<std::process::Child> {
         std::env::set_var("GEPH_RPC_KEY", GEPH_RPC_KEY.clone());
-        let mut auth_args = to_flags(self.auth.clone())?;
+        let mut auth_flags = self.auth.clone().to_flags()?;
         let common_args = Vec::new()
             .tap_mut(|v| {
                 v.push("--exit-server".into());
@@ -72,7 +72,6 @@ impl DaemonConfig {
                 }
                 v.push("--debugpack-path".into());
                 v.push(debugpack_path().to_string_lossy().to_string());
-                v.append(&mut auth_args);
             })
             .tap_mut(|v| {
                 if self.prc_whitelist {
@@ -91,6 +90,9 @@ impl DaemonConfig {
                     v.push("--http-listen".into());
                     v.push("0.0.0.0:9910".into());
                 }
+            })
+            .tap_mut(|v| {
+                v.append(&mut auth_flags);
             });
 
         if self.vpn_mode {

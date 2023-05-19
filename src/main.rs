@@ -27,7 +27,6 @@ mod fakefs;
 mod mtbus;
 mod pac;
 mod rpc_handler;
-mod utils;
 use rpc_handler::{global_rpc_handler, RUNNING_DAEMON};
 const SERVE_ADDR: &str = "127.0.0.1:5678";
 
