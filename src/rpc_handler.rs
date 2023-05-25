@@ -109,7 +109,9 @@ fn secret_path() -> PathBuf {
 
 fn store_secret(secret: String) -> anyhow::Result<()> {
     let path = secret_path();
-    let mut file = File::create(&path)?;
+    let prefix = path.parent().context("Error getting prefix")?;
+    std::fs::create_dir_all(prefix).context("Error creating directories")?;
+    let mut file = File::create(&path).expect("WHOOPS!");
 
     write!(file, "{}", secret)?;
     Ok(())
