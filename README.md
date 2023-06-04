@@ -8,12 +8,11 @@ To compile and run `gephgui-wry`:
   ```shell!
   cargo install geph4-client
   ```
-  
-2. Install a `JavaScript` package manager, then `cd` into the `gephgui` git submodule and build `gephgui`. With `npm`:
+4. Install a `JavaScript` package manager, then `cd` into the `gephgui` git submodule and build `gephgui`. With `npm`:
   ```shell!
   npm i; npm run build
   ```
-3. Back in the `gephgui-wry` directory:
+5. Back in the `gephgui-wry` directory:
   ```shell!
   cargo run
   ```
