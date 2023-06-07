@@ -4,7 +4,13 @@ use rand::Rng;
 
 use serde::{Deserialize, Serialize};
 use smol_timeout::TimeoutExt;
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    fs::{create_dir_all, File},
+    io::{copy, Read},
+    time::Duration,
+};
+use tempfile::Builder;
 
 use crate::{daemon::daemon_version, mtbus::mt_enqueue};
 
@@ -19,12 +25,13 @@ pub async fn autoupdate_loop() {
         let fallible_part = async {
             let update_avail = picked.update_available().await?;
             if let Some(update) = update_avail {
+                let update_path = picked.download_update().await?;
                 let version = update.version.clone();
                 #[cfg(not(target_os = "macos"))]
                 let decision_made = {
                     let (send, recv) = smol::channel::bounded(1);
 
-                    mt_enqueue(move |wv| {
+                    mt_enqueue(move |_wv| {
                         let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？")).show_confirm();
                         let _ = send.try_send(res.unwrap_or_default());
                     });
@@ -42,11 +49,7 @@ pub async fn autoupdate_loop() {
                     .await
                 };
                 if decision_made {
-                    // TODO do something more intelligent
-                    let url = picked.resolve_url(&update);
-                    mt_enqueue(move |_| {
-                        let _ = webbrowser::open(&url);
-                    })
+                    install_update(update_path)?;
                 }
             }
             anyhow::Ok(())
@@ -56,6 +59,23 @@ pub async fn autoupdate_loop() {
         }
         smol::Timer::after(Duration::from_secs(3600)).await;
     }
+}
+
+fn install_update(path: String) -> anyhow::Result<()> {
+    eprintln!("Installing update");
+
+    let mut cmd = std::process::Command::new("flatpak");
+    cmd.arg("install");
+    cmd.arg("--assumeyes");
+    cmd.arg(path);
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+
+    let status = &cmd.status()?;
+    eprintln!("Installation status: {}", status);
+
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -123,5 +143,39 @@ impl AutoupdateDownloader {
             .bytes()
             .await?;
         Ok(serde_yaml::from_slice(&response)?)
+    }
+
+    async fn download_update(&self) -> anyhow::Result<String> {
+        let metadata = self
+            .metadata()
+            .await?
+            .get(TRACK)
+            .context("error getting track")?
+            .clone();
+        let url = self.resolve_url(&metadata);
+        let res = ureq::get(&url).call()?;
+
+        let mut tmp_dir = Builder::new().tempdir()?.into_path();
+        let filename = res
+            .get_url()
+            .split("/")
+            .last()
+            .context("Unable to get update filename")?;
+        tmp_dir.push(filename);
+        let mut dest = File::create(&tmp_dir)?;
+        let filepath_str = tmp_dir
+            .as_os_str()
+            .to_str()
+            .context("Error converting tmp directory to string")?;
+
+        create_dir_all(tmp_dir.parent().context("Error getting tmp file dir")?)?;
+        copy(&mut res.into_reader().take(20_000_000), &mut dest)?;
+
+        eprintln!(
+            "Update v{} was successfully downloaded to {}",
+            metadata.version, &filepath_str
+        );
+
+        Ok(filepath_str.to_string())
     }
 }
