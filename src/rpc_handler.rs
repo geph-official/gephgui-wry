@@ -143,7 +143,7 @@ static PROXY_CONFIGURED: AtomicBool = AtomicBool::new(false);
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
-        configure_proxy().context("cannot configure proxy")?;
+        // configure_proxy().context("cannot configure proxy")?;
         PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
     let mut rd = RUNNING_DAEMON.lock();
