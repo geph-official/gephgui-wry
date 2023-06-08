@@ -25,31 +25,46 @@ pub async fn autoupdate_loop() {
         let fallible_part = async {
             let update_avail = picked.update_available().await?;
             if let Some(update) = update_avail {
-                let update_path = picked.download_update().await?;
                 let version = update.version.clone();
-                #[cfg(not(target_os = "macos"))]
-                let decision_made = {
+
+                #[cfg(target_os = "linux")]
+                let _notification_ack = {
                     let (send, recv) = smol::channel::bounded(1);
 
                     mt_enqueue(move |_wv| {
-                        let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？")).show_confirm();
+                        let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade using the 'flatpak update' command.\n找到更新版本的密雾通 ({version})。 使用'flatpak update'命令进行更新。\n找到更新版本的密霧通 ({version})。 使用'flatpak update'命令進行更新。")).show_alert();
                         let _ = send.try_send(res.unwrap_or_default());
                     });
                     recv.recv().await?
                 };
-                #[cfg(target_os = "macos")]
-                let decision_made: bool = {
-                    use rfd::{MessageButtons, MessageLevel};
-                    rfd::AsyncMessageDialog::new()
-                .set_buttons(MessageButtons::YesNo)
-                .set_level(MessageLevel::Info)
-                    .set_title("Update available / 可用更新")
-                    .set_description(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？"))
-                    .show()
-                    .await
-                };
-                if decision_made {
-                    install_update(update_path)?;
+
+                #[cfg(not(target_os = "linux"))]
+                {
+                    let update_path = picked.download_update().await?;
+                    #[cfg(not(target_os = "macos"))]
+                    let decision_made = {
+                        let (send, recv) = smol::channel::bounded(1);
+
+                        mt_enqueue(move |_wv| {
+                            let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？")).show_confirm();
+                            let _ = send.try_send(res.unwrap_or_default());
+                        });
+                        recv.recv().await?
+                    };
+                    #[cfg(target_os = "macos")]
+                    let decision_made: bool = {
+                        use rfd::{MessageButtons, MessageLevel};
+                        rfd::AsyncMessageDialog::new()
+                            .set_buttons(MessageButtons::YesNo)
+                            .set_level(MessageLevel::Info)
+                            .set_title("Update available / 可用更新")
+                            .set_description(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？"))
+                            .show()
+                            .await
+                    };
+                    if decision_made {
+                        install_update(update_path)?;
+                    }
                 }
             }
             anyhow::Ok(())
@@ -62,18 +77,12 @@ pub async fn autoupdate_loop() {
 }
 
 fn install_update(path: String) -> anyhow::Result<()> {
-    eprintln!("Installing update");
+    eprintln!("Initiating update installation");
 
-    let mut cmd = std::process::Command::new("flatpak");
-    cmd.arg("install");
-    cmd.arg("--assumeyes");
-    cmd.arg(path);
-
-    #[cfg(windows)]
-    cmd.creation_flags(0x08000000);
-
-    let status = &cmd.status()?;
-    eprintln!("Installation status: {}", status);
+    match open::that(&path) {
+        Ok(()) => eprintln!("Successfully opened '{}'", &path),
+        Err(e) => eprintln!("Error opening '{}': {}", &path, e),
+    };
 
     Ok(())
 }
