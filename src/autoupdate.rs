@@ -41,7 +41,7 @@ pub async fn autoupdate_loop() {
                 #[cfg(not(target_os = "linux"))]
                 {
                     let update_path = picked.download_update().await?;
-                    #[cfg(not(target_os = "macos"))]
+                    #[cfg(target_os = "windows")]
                     let decision_made = {
                         let (send, recv) = smol::channel::bounded(1);
 
