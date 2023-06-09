@@ -60,6 +60,7 @@ fn wry_loop() -> anyhow::Result<()> {
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
         })
+        .with_resizable(true)
         .with_title("Geph")
         .with_window_icon(Some(logo_icon))
         .build(&event_loop)?;
