@@ -69,7 +69,7 @@ struct DaemonConfigPlus {
 
 pub type DeathBox = Mutex<Option<std::process::Child>>;
 
-pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
+// pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
 fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
     println!("handle_sync {:?}", params);
@@ -137,47 +137,52 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
     Ok(s)
 }
 
-static PROXY_CONFIGURED: AtomicBool = AtomicBool::new(false);
+// static PROXY_CONFIGURED: AtomicBool = AtomicBool::new(false);
 
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;
-        PROXY_CONFIGURED.store(true, Ordering::SeqCst);
+        // PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
-    let mut rd = RUNNING_DAEMON.lock();
-    if rd.is_none() {
-        let daemon = params.daemon_conf.start().context("cannot start daemon")?;
-        *rd = Some(daemon);
-    }
-    std::thread::spawn(move || loop {
-        {
-            let mut daemon = RUNNING_DAEMON.lock();
-            if let Some(d) = daemon.as_mut() {
-                if let Ok(Some(_)) = d.try_wait() {
-                    std::thread::spawn(move || handle_stop_daemon(vec![]));
-                }
+    let is_connected: bool = match handle_daemon_rpc((String::from("is_connected"),)) {
+        Ok(result) => result.parse::<bool>()?,
+        Err(err) => {
+            dbg!(&err);
+            if err
+                .to_string()
+                .to_lowercase()
+                .contains("connection refused")
+            {
+                false
             } else {
-                return;
+                anyhow::bail!(err);
             }
         }
-        std::thread::sleep(Duration::from_secs(1));
-    });
+    };
+    println!("WE LIVED!!!");
+    if !is_connected {
+        params.daemon_conf.start().context("cannot start daemon")?;
+        loop {
+            let is_connected = handle_daemon_rpc((String::from("is_connected"),))?.parse()?;
+            println!("connect?: {}", is_connected);
+            if is_connected {
+                break;
+            };
+            std::thread::sleep(Duration::from_secs(3));
+        }
+    }
     Ok("".into())
 }
 
 /// Handles a request to stop the daemon
 fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
-    let mut rd = RUNNING_DAEMON.lock();
-    if let Some(mut rd) = rd.take() {
-        eprintln!("***** STOPPING DAEMON *****");
-        rd.kill()?;
-        rd.wait()?;
-    }
-    if PROXY_CONFIGURED.swap(false, Ordering::SeqCst) {
-        deconfigure_proxy()?;
-    }
+    eprintln!("***** STOPPING DAEMON *****");
+    handle_daemon_rpc((String::from("kill"),))?;
+    deconfigure_proxy()?;
+    eprintln!("***** DAEMON STOPPED :V *****");
+
     Ok("".into())
 }
 
