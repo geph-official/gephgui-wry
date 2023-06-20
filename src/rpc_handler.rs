@@ -161,17 +161,8 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
             }
         }
     };
-    println!("WE LIVED!!!");
     if !is_connected {
         params.daemon_conf.start().context("cannot start daemon")?;
-        loop {
-            let is_connected = handle_daemon_rpc((String::from("is_connected"),))?.parse()?;
-            println!("connect?: {}", is_connected);
-            if is_connected {
-                break;
-            };
-            std::thread::sleep(Duration::from_secs(3));
-        }
     }
     Ok("".into())
 }
@@ -180,7 +171,10 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
 fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     eprintln!("***** STOPPING DAEMON *****");
     handle_daemon_rpc((String::from("kill"),))?;
-    deconfigure_proxy()?;
+
+    eprintln!("************ DECONFIGURING ********");
+    let _ = deconfigure_proxy();
+
     eprintln!("***** DAEMON STOPPED :V *****");
 
     Ok("".into())
