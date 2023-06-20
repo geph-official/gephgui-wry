@@ -187,12 +187,10 @@ fn handle_set_conversion_factor(params: (f64,)) -> anyhow::Result<String> {
     let factor = params.0;
     tracing::debug!(factor);
     mt_enqueue(move |webview| {
-        webview.window().set_resizable(true);
         webview.window().set_inner_size(LogicalSize {
             width: WINDOW_WIDTH as f64 * factor,
             height: WINDOW_HEIGHT as f64 * factor,
         });
-        webview.window().set_resizable(false);
     });
     Ok("".into())
 }
