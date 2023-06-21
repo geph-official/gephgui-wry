@@ -33,7 +33,7 @@ window["NATIVE_GATE"] = {
       }
     }
   },
-  async stop_daemon(params) {
+  async stop_daemon() {
     await window.rpc.call("stop_daemon", []);
   },
   async is_connected() {

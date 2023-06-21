@@ -15,11 +15,10 @@ use crate::{
     WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use anyhow::Context;
-
-use once_cell::sync::Lazy;
-use parking_lot::Mutex;
+use nanorpc::JrpcRequest;
 use serde::Deserialize;
 
+use serde_json::json;
 use tide::convert::{DeserializeOwned, Serialize};
 use wry::application::dpi::LogicalSize;
 use wry::{
@@ -66,10 +65,6 @@ struct DaemonConfigPlus {
     daemon_conf: DaemonConfig,
     proxy_autoconf: bool,
 }
-
-pub type DeathBox = Mutex<Option<std::process::Child>>;
-
-// pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
 fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
     println!("handle_sync {:?}", params);
@@ -137,8 +132,6 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
     Ok(s)
 }
 
-// static PROXY_CONFIGURED: AtomicBool = AtomicBool::new(false);
-
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
@@ -146,10 +139,17 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
         configure_proxy().context("cannot configure proxy")?;
         // PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
-    let is_connected: bool = match handle_daemon_rpc((String::from("is_connected"),)) {
+
+    let request = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: "is_connected".into(),
+        params: [].to_vec(),
+        id: nanorpc::JrpcId::Number(1),
+    };
+
+    let is_connected: bool = match handle_daemon_rpc(((json!(request)).to_string(),)) {
         Ok(result) => result.parse::<bool>()?,
         Err(err) => {
-            dbg!(&err);
             if err
                 .to_string()
                 .to_lowercase()
@@ -170,11 +170,14 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
 /// Handles a request to stop the daemon
 fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     eprintln!("***** STOPPING DAEMON *****");
-    handle_daemon_rpc((String::from("kill"),))?;
-
-    eprintln!("************ DECONFIGURING ********");
+    let request = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: "kill".into(),
+        params: [].to_vec(),
+        id: nanorpc::JrpcId::Number(1),
+    };
+    handle_daemon_rpc(((json!(request)).to_string(),))?;
     let _ = deconfigure_proxy();
-
     eprintln!("***** DAEMON STOPPED :V *****");
 
     Ok("".into())

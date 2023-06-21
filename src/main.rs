@@ -60,9 +60,11 @@ fn wry_loop() -> anyhow::Result<()> {
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
         })
+        .with_resizable(true)
         .with_title("Geph")
         .with_window_icon(Some(logo_icon))
         .build(&event_loop)?;
+    eprintln!("resizable?: {}", window.is_resizable());
     let initjs = include_str!("init.js");
 
     #[cfg(target_os = "macos")]
@@ -99,6 +101,7 @@ fn wry_loop() -> anyhow::Result<()> {
                 std::process::exit(0);
             }
             Event::RedrawRequested(_) => {
+                tracing::info!("REDRAW REQUESTED!!!!!!!!!!!!!!!!!!!!!!!");
                 webview.resize().expect("cannot resize window");
             }
             Event::MenuEvent { .. } => webview.window().set_visible(true),
