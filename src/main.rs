@@ -23,10 +23,12 @@ use wry::{
 
 mod autoupdate;
 mod daemon;
+mod daemon_windows_service;
 mod fakefs;
 mod mtbus;
 mod pac;
 mod rpc_handler;
+
 use rpc_handler::{global_rpc_handler, RUNNING_DAEMON};
 const SERVE_ADDR: &str = "127.0.0.1:5678";
 

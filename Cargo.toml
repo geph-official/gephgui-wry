@@ -46,14 +46,16 @@ smol-timeout = "0.6.0"
 rand = "0.8.5"
 native-dialog = "0.5"
 open = "4.1.0"
+windows-service = "0.6.0"
+
+[build-dependencies]
+embed-resource = "2.1.1"
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.12"
-
-
 
 [dependencies.wry]
 git = "https://github.com/tauri-apps/wry"

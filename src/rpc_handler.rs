@@ -10,6 +10,7 @@ use std::os::windows::process::CommandExt;
 
 use crate::{
     daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION, GEPH_RPC_KEY},
+    daemon_windows_service::create_service,
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
     WINDOW_HEIGHT, WINDOW_WIDTH,
@@ -142,15 +143,25 @@ static PROXY_CONFIGURED: AtomicBool = AtomicBool::new(false);
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
+
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;
         PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
     let mut rd = RUNNING_DAEMON.lock();
+
+    #[cfg(target_os = "windows")]
+    // This will no-op if a Windows service with the same name already exists
+    create_service(&params.daemon_conf)?;
+    // start_service(&params.daemon_conf)?;
+
+    // TODO: don't start another daemon if windows
+
     if rd.is_none() {
         let daemon = params.daemon_conf.start().context("cannot start daemon")?;
         *rd = Some(daemon);
     }
+
     std::thread::spawn(move || loop {
         {
             let mut daemon = RUNNING_DAEMON.lock();
