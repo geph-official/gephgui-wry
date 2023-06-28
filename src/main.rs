@@ -27,6 +27,8 @@ mod fakefs;
 mod mtbus;
 mod pac;
 mod rpc_handler;
+mod windows_service;
+
 use rpc_handler::global_rpc_handler;
 const SERVE_ADDR: &str = "127.0.0.1:5678";
 

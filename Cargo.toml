@@ -47,6 +47,7 @@ rand = "0.8.5"
 native-dialog = "0.5"
 open = "4.1.0"
 nanorpc = "0.1.12"
+windows-service = "0.6.0"
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"

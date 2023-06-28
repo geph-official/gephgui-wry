@@ -137,7 +137,6 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;
-        // PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
 
     let request = JrpcRequest {
@@ -146,18 +145,15 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
         params: [].to_vec(),
         id: nanorpc::JrpcId::Number(1),
     };
-
     let is_connected: bool = match handle_daemon_rpc(((json!(request)).to_string(),)) {
         Ok(result) => result.parse::<bool>()?,
         Err(err) => {
-            if err
-                .to_string()
-                .to_lowercase()
-                .contains("connection refused")
-            {
+            // TODO: smarter error handling
+            // e.g. `machine actively refused connection` vs. `connection refused`
+            if err.to_string().to_lowercase().contains("refused") {
                 false
             } else {
-                anyhow::bail!(err);
+                anyhow::bail!("error while checking daemon connectivity: {}", err);
             }
         }
     };

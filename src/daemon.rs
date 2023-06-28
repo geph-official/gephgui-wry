@@ -6,7 +6,9 @@ use tap::Tap;
 use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
+
+use crate::windows_service;
 
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> =
@@ -54,7 +56,7 @@ pub fn debugpack_path() -> PathBuf {
 
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
-    pub fn start(self) -> anyhow::Result<std::process::Child> {
+    pub fn start(self) -> anyhow::Result<()> {
         std::env::set_var("GEPH_RPC_KEY", GEPH_RPC_KEY.clone());
         let common_args = Vec::new()
             .tap_mut(|v| {
@@ -93,44 +95,81 @@ impl DaemonConfig {
                 v.push(self.password.clone());
             });
 
-        if self.vpn_mode {
-            #[cfg(target_os = "linux")]
-            {
-                let mut cmd = std::process::Command::new("pkexec");
-                cmd.arg(DAEMON_PATH);
-                cmd.arg("connect");
-                cmd.arg("--vpn-mode").arg("tun-route");
-                cmd.args(&common_args);
-                let child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(child)
-            }
-            #[cfg(target_os = "windows")]
-            {
-                if !is_elevated::is_elevated() {
-                    anyhow::bail!("VPN mode requires admin privileges on Windows!!!")
+        // Check if the windows service is already running. If so, do not start another daemon
+        if cfg!(target_os = "windows") {
+            let windows_service_running = windows_service::is_service_running()?;
+            if !windows_service_running {
+                // There may be a small delay between when you start the service (and subsequently the "geph4-client connect" process via Command::spawn)
+                // and when the process is fully up and running, ready to accept incoming connections.
+                const MAX_RETRIES: usize = 10;
+                const RETRY_DELAY: Duration = Duration::from_millis(500);
+                let args: Vec<&str> = common_args.iter().map(|s| s.as_str()).collect();
+
+                for attempt in 1..=MAX_RETRIES {
+                    match windows_service::start_service(args.clone()) {
+                        Ok(_) => {
+                            // Connection was successful, so break from the loop.
+                            break;
+                        }
+                        Err(e) if attempt < MAX_RETRIES => {
+                            eprintln!(
+                                "Failed to start service and connect (attempt {}): {}",
+                                attempt, e
+                            );
+
+                            std::thread::sleep(RETRY_DELAY);
+                        }
+                        Err(e) => {
+                            // Give up after MAX_RETRIES failed attempts.
+                            anyhow::bail!("failed to start windows service: {}", e);
+                        }
+                    }
                 }
+
+                eprintln!("started windows service!");
+            }
+            return Ok(());
+        } else {
+            // Start the daemon as usual
+            if self.vpn_mode {
+                #[cfg(target_os = "linux")]
+                {
+                    let mut cmd = std::process::Command::new("pkexec");
+                    cmd.arg(DAEMON_PATH);
+                    cmd.arg("connect");
+                    cmd.arg("--vpn-mode").arg("tun-route");
+                    cmd.args(&common_args);
+                    let child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                    Ok(())
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    if !is_elevated::is_elevated() {
+                        anyhow::bail!("VPN mode requires admin privileges on Windows!!!")
+                    }
+                    let mut cmd = std::process::Command::new(DAEMON_PATH);
+                    cmd.arg("connect");
+                    cmd.arg("--vpn-mode").arg("windivert");
+                    cmd.args(&common_args);
+                    #[cfg(windows)]
+                    cmd.creation_flags(0x08000000);
+                    let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                    Ok(())
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    anyhow::bail!("VPN mode not supported on macOS")
+                }
+            } else {
                 let mut cmd = std::process::Command::new(DAEMON_PATH);
                 cmd.arg("connect");
-                cmd.arg("--vpn-mode").arg("windivert");
                 cmd.args(&common_args);
                 #[cfg(windows)]
                 cmd.creation_flags(0x08000000);
-                let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(child)
+                let child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                eprintln!("*** CHILD ***");
+                Ok(())
             }
-            #[cfg(target_os = "macos")]
-            {
-                anyhow::bail!("VPN mode not supported on macOS")
-            }
-        } else {
-            let mut cmd = std::process::Command::new(DAEMON_PATH);
-            cmd.arg("connect");
-            cmd.args(&common_args);
-            #[cfg(windows)]
-            cmd.creation_flags(0x08000000);
-            let child = cmd.spawn().context("cannot spawn non-VPN child")?;
-            eprintln!("*** CHILD ***");
-            Ok(child)
         }
     }
 }
