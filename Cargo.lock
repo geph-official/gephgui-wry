@@ -1349,6 +1349,7 @@ dependencies = [
  "ureq",
  "webbrowser",
  "which 4.2.2",
+ "winapi",
  "windows-service",
  "winres",
  "wry",

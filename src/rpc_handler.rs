@@ -157,9 +157,29 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
             }
         }
     };
+
+    eprintln!("am I connected? {}", is_connected);
+
     if !is_connected {
         params.daemon_conf.start().context("cannot start daemon")?;
+        eprintln!("supposedly started daemon");
     }
+    loop {
+        match handle_daemon_rpc(((json!(request)).to_string(),)) {
+            Ok(result) => {
+                let is_connected = result.parse::<bool>()?;
+                if is_connected {
+                    eprintln!("connected to daemon!");
+                    break;
+                }
+            }
+            Err(err) => {
+                eprintln!("still waiting to connect daemon!: {}", err);
+                std::thread::sleep(Duration::from_secs(1));
+            }
+        }
+    }
+
     Ok("".into())
 }
 
