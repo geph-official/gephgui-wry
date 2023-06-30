@@ -166,9 +166,71 @@ impl DaemonConfig {
         }
     }
 
+    fn extract_args(&self) -> Vec<String> {
+        let mut args: Vec<String> = Vec::new();
+        args.push("connect".into());
+
+        if self.vpn_mode {
+            #[cfg(target_os = "linux")]
+            {
+                args.push("--vpn-mode".into());
+                args.push("tun-route".into());
+            }
+            #[cfg(target_os = "windows")]
+            {
+                args.push("--vpn-mode".into());
+                args.push("windivert".into());
+            }
+            #[cfg(target_os = "macos")]
+            {
+                anyhow::bail!("VPN mode not supported on macOS")
+            }
+        }
+
+        let common_args = Vec::new()
+            .tap_mut(|v| {
+                v.push("--exit-server".into());
+                v.push(self.exit_hostname.clone());
+                if let Some(force) = self.force_protocol.clone() {
+                    v.push("--force-protocol".into());
+                    v.push(force);
+                }
+                v.push("--debugpack-path".into());
+                v.push(debugpack_path().to_string_lossy().to_string());
+            })
+            .tap_mut(|v| {
+                if self.prc_whitelist {
+                    v.push("--exclude-prc".into())
+                }
+            })
+            .tap_mut(|v| {
+                if self.force_bridges {
+                    v.push("--use-bridges".into())
+                }
+            })
+            .tap_mut(|v| {
+                if self.listen_all {
+                    v.push("--socks5-listen".into());
+                    v.push("0.0.0.0:9909".into());
+                    v.push("--http-listen".into());
+                    v.push("0.0.0.0:9910".into());
+                }
+            })
+            .tap_mut(|v| {
+                v.push("auth-password".to_string());
+                v.push("--username".to_string());
+                v.push(self.username.clone());
+                v.push("--password".into());
+                v.push(self.password.clone());
+            });
+        args.extend(common_args);
+
+        args
+    }
+
     fn write_config(&self) -> anyhow::Result<()> {
-        let config = self.clone();
-        let config_json = serde_json::to_string(&config)?;
+        let args = self.extract_args();
+        let config_json = serde_json::to_string(&args)?;
         // TODO: save this in a more secure location / resolve the Windows username and write to `~/.config/geph4-credentials`.
         let config_file_path = PathBuf::from("C:/ProgramData/geph4-credentials/config.json");
         let config_file_dir = config_file_path.parent().unwrap();

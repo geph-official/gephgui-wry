@@ -27,6 +27,8 @@ mod fakefs;
 mod mtbus;
 mod pac;
 mod rpc_handler;
+
+#[cfg(target_os = "windows")]
 mod windows_service;
 
 use rpc_handler::global_rpc_handler;
