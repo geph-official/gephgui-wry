@@ -48,7 +48,6 @@ native-dialog = "0.5"
 open = "4.1.0"
 nanorpc = "0.1.12"
 windows-service = "0.6.0"
-winapi = { version = "0.3.9", features = ["wincred"] }
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"
