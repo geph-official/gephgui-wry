@@ -6,6 +6,7 @@ use std::{
     ffi::{OsStr, OsString},
     fs::File,
     io::{Read, Write},
+    net::SocketAddr,
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command},
@@ -14,7 +15,7 @@ use std::{
         Arc, Mutex,
     },
     thread::Builder,
-    time::Duration, net::SocketAddr,
+    time::Duration,
 };
 use thiserror;
 use windows_service::{
@@ -39,17 +40,13 @@ struct ControlProtocolImpl {}
 
 #[async_trait]
 impl ControlProtocol for ControlProtocolImpl {
-  async fn start(&self, args: Vec<String>) -> Result<(), String> {
-    let mut cmd = Command::new("geph4-client");
-    cmd.args(&args);
-    cmd.creation_flags(0x08000000);
-    let mut child = cmd.spawn().expect("Unable to spawn Geph4-client child");
-    Ok(())
-  }
-}
-
-fn main() {
-    run();
+    async fn start(&self, args: Vec<String>) -> Result<(), String> {
+        let mut cmd = Command::new("geph4-client");
+        cmd.args(&args);
+        cmd.creation_flags(0x08000000);
+        let mut child = cmd.spawn().expect("Unable to spawn Geph4-client child");
+        Ok(())
+    }
 }
 
 const SERVICE_NAME: &str = "GephDaemon";
@@ -74,6 +71,7 @@ pub struct DaemonConfig {
     pub listen_all: bool,
     pub force_protocol: Option<String>,
 }
+
 define_windows_service!(ffi_service_main, daemon_service_main);
 
 pub fn run() {
@@ -83,10 +81,10 @@ pub fn run() {
 
 /// Loop that handles the control protocol
 async fn control_protocol_loop() -> anyhow::Result<()> {
-  let http = HttpRpcServer::bind(WINDOWS_SERVICE_ADDR.parse()?).await?;
-  let service = ControlService(ControlProtocolImpl {});
-  http.run(service).await?;
-  Ok(())
+    let http = HttpRpcServer::bind(WINDOWS_SERVICE_ADDR.parse()?).await?;
+    let service = ControlService(ControlProtocolImpl {});
+    http.run(service).await?;
+    Ok(())
 }
 
 fn daemon_service_main(args: Vec<OsString>) {

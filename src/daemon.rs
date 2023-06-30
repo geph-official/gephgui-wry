@@ -9,9 +9,10 @@ use tap::Tap;
 use std::os::windows::process::CommandExt;
 use std::{fs::File, io::Write, path::PathBuf};
 
-use crate::{windows_server_daemon::ControlClient, WINDOWS_SERVICE_ADDR};
 #[cfg(target_os = "windows")]
 use crate::windows_service;
+#[cfg(target_os = "windows")]
+use crate::{windows_server_daemon::ControlClient, WINDOWS_SERVICE_ADDR};
 
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> =
@@ -123,25 +124,24 @@ impl DaemonConfig {
                     anyhow::bail!("VPN mode requires admin privileges on Windows!!!")
                 }
                 if cfg!(target_os = "windows") {
-                    let windows_service_running = windows_service::is_service_running()?;
-                    if !windows_service_running {
-                        smolscale::block_on(async move {
-                            let common_args: Vec<&str> =
-                                common_args.iter().map(|s| s.as_str()).collect();
-                            let vpn_mode_args = vec!["--vpn-mode", "windivert"];
+                    smolscale::block_on(async move {
+                        let common_args: Vec<&str> =
+                            common_args.iter().map(|s| s.as_str()).collect();
+                        let vpn_mode_args = vec!["--vpn-mode", "windivert"];
 
-                            let mut args = Vec::new();
-                            args.push("connect");
-                            args.extend(common_args);
-                            args.extend(vpn_mode_args);
-                            eprintln!("vpn mode args: {:?}", args);
+                        let mut args = Vec::new();
+                        args.push("connect");
+                        args.extend(common_args);
+                        args.extend(vpn_mode_args);
+                        eprintln!("vpn mode args: {:?}", args);
 
-                            self.write_config().unwrap();
-                            // windows_service::start_service()?;
-                            let conn = ControlClient::from(HttpRpcTransport::new(WINDOWS_SERVICE_ADDR.parse().unwrap()));
-                            conn.start(args.into_iter().map(|arg| String::from(arg)).collect()).await
-                        })?;
-                    }
+                        self.write_config().unwrap();
+                        let conn = ControlClient::from(HttpRpcTransport::new(
+                            WINDOWS_SERVICE_ADDR.parse().unwrap(),
+                        ));
+                        conn.start(args.into_iter().map(|arg| String::from(arg)).collect())
+                            .await
+                    })?;
                 }
 
                 Ok(())
@@ -152,13 +152,7 @@ impl DaemonConfig {
             }
         } else {
             #[cfg(target_os = "windows")]
-            {
-                let windows_service_running = windows_service::is_service_running()?;
-                if !windows_service_running {
-                    self.write_config()?;
-                    windows_service::start_service()?;
-                }
-            }
+            {}
             let mut cmd = std::process::Command::new(DAEMON_PATH);
             cmd.arg("connect");
             cmd.args(&common_args);

@@ -29,9 +29,9 @@ mod pac;
 mod rpc_handler;
 
 #[cfg(target_os = "windows")]
-mod windows_service;
-#[cfg(target_os = "windows")]
 mod windows_server_daemon;
+#[cfg(target_os = "windows")]
+mod windows_service;
 
 use rpc_handler::global_rpc_handler;
 const SERVE_ADDR: &str = "127.0.0.1:5678";
@@ -55,8 +55,16 @@ fn main() -> anyhow::Result<()> {
 
             wry_loop()
         }
-        "WINDOWS_DAEMON" => Ok(()),
-        "INSTALL_WINDOWS_SERVICE" => Ok(()),
+        "WINDOWS_DAEMON" => {
+            #[cfg(target_os = "windows")]
+            {
+                windows_server_daemon::run();
+                Ok(())
+            }
+            #[cfg(not(target_os = "windows"))]
+            anyhow::bail!("WINDOWS_DAEMON not supported outside Windows!");
+        }
+        "INSTALL_WINDOWS_SERVICE" => todo!(),
         _ => panic!(),
     }
 }
