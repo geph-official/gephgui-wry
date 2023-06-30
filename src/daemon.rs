@@ -1,13 +1,13 @@
 use once_cell::sync::Lazy;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use smol::fs::windows;
+
 use tap::Tap;
 
 use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use std::{fs::File, io::Write, path::PathBuf, time::Duration};
+use std::{fs::File, io::Write, path::PathBuf};
 
 use crate::windows_service;
 
@@ -168,14 +168,14 @@ impl DaemonConfig {
                     // write this to a file for geph_daemon to read from later
                     let auth_kind = AuthKind::AuthPassword {
                         username: self.username.clone(),
-                        password: self.password.clone(),
+                        password: self.password,
                     };
                     let auth_json = serde_json::to_string(&auth_kind)?;
                     let config_file_path =
                         PathBuf::from("C:/ProgramData/geph4-credentials/auth.json");
                     let config_file_dir = config_file_path.parent().unwrap();
                     if !config_file_dir.exists() {
-                        std::fs::create_dir_all(&config_file_dir)
+                        std::fs::create_dir_all(config_file_dir)
                             .expect("Failed to create auth directory");
                     }
                     let mut file =
@@ -201,7 +201,7 @@ impl DaemonConfig {
                 cmd.args(&common_args);
                 #[cfg(windows)]
                 cmd.creation_flags(0x08000000);
-                let child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                let _child = cmd.spawn().context("cannot spawn non-VPN child")?;
                 eprintln!("*** CHILD ***");
                 Ok(())
             }
