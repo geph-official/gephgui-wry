@@ -133,6 +133,12 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
 
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Installs the Windows service if it doesn't exist
+        windows_service::install_windows_service();
+    }
+
     let params = params.0;
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;

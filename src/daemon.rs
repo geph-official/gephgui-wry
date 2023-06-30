@@ -16,7 +16,7 @@ pub static GEPH_RPC_KEY: Lazy<String> =
     Lazy::new(|| format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>()));
 
 /// Configuration for starting the daemon
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DaemonConfig {
     pub username: String,
     pub password: String,
@@ -131,21 +131,13 @@ impl DaemonConfig {
                         args.push("connect");
                         args.extend(common_args);
                         args.extend(vpn_mode_args);
-
                         eprintln!("vpn mode args: {:?}", args);
 
-                        // TODO: figure out easy way to write ConnectOpt to a file
+                        self.write_config()?;
                         windows_service::start_service()?;
                     }
                 }
 
-                // let mut cmd = std::process::Command::new(DAEMON_PATH);
-                // cmd.arg("connect");
-                // cmd.arg("--vpn-mode").arg("windivert");
-                // cmd.args(&common_args);
-                // #[cfg(windows)]
-                // cmd.creation_flags(0x08000000);
-                // let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
                 Ok(())
             }
             #[cfg(target_os = "macos")]
@@ -153,46 +145,12 @@ impl DaemonConfig {
                 anyhow::bail!("VPN mode not supported on macOS")
             }
         } else {
-            eprintln!("non-vpn mode here");
             if cfg!(target_os = "windows") {
-                eprintln!("HOHO HAHA!!!!");
                 let windows_service_running = windows_service::is_service_running()?;
                 if !windows_service_running {
-                    let mut args = Vec::new();
-                    args.push("connect");
-                    let common_args: Vec<&str> = common_args.iter().map(|s| s.as_str()).collect();
-                    args.extend(common_args);
-
-                    eprintln!("non-vpn mode connect args: {:?}", args);
-
-                    // write this to a file for geph_daemon to read from later
-                    let auth_kind = AuthKind::AuthPassword {
-                        username: self.username.clone(),
-                        password: self.password,
-                    };
-                    let auth_json = serde_json::to_string(&auth_kind)?;
-                    let config_file_path =
-                        PathBuf::from("C:/ProgramData/geph4-credentials/auth.json");
-                    let config_file_dir = config_file_path.parent().unwrap();
-                    if !config_file_dir.exists() {
-                        std::fs::create_dir_all(config_file_dir)
-                            .expect("Failed to create auth directory");
-                    }
-                    let mut file =
-                        File::create(&config_file_path).expect("Failed to create auth file");
-                    file.write_all(auth_json.as_bytes())
-                        .expect("Failed to write to auth file");
-
+                    self.write_config()?;
                     windows_service::start_service()?;
                 }
-
-                // let mut cmd = std::process::Command::new(DAEMON_PATH);
-                // cmd.arg("connect");
-                // cmd.args(&common_args);
-                // #[cfg(windows)]
-                // cmd.creation_flags(0x08000000);
-                // let child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                // eprintln!("*** CHILD ***");
 
                 Ok(())
             } else {
@@ -206,5 +164,19 @@ impl DaemonConfig {
                 Ok(())
             }
         }
+    }
+
+    fn write_config(&self) -> anyhow::Result<()> {
+        let config = self.clone();
+        let config_json = serde_json::to_string(&config)?;
+        // TODO: save this in a more secure location / resolve the Windows username and write to `~/.config/geph4-credentials`.
+        let config_file_path = PathBuf::from("C:/ProgramData/geph4-credentials/config.json");
+        let config_file_dir = config_file_path.parent().unwrap();
+        if !config_file_dir.exists() {
+            std::fs::create_dir_all(config_file_dir)?;
+        }
+        let mut file = File::create(&config_file_path)?;
+        file.write_all(config_json.as_bytes())?;
+        Ok(())
     }
 }
