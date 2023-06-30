@@ -130,7 +130,7 @@ pub fn install_windows_service() -> anyhow::Result<()> {
         name: OsString::from(SERVICE_NAME),
         display_name: OsString::from("Geph Daemon"),
         service_type: ServiceType::OWN_PROCESS,
-        start_type: ServiceStartType::OnDemand,
+        start_type: ServiceStartType::AutoStart,
         error_control: ServiceErrorControl::Normal,
         executable_path: service_binary_path,
         launch_arguments: vec![],

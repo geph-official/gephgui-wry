@@ -43,18 +43,6 @@ const WINDOW_HEIGHT: i32 = 600;
 fn main() -> anyhow::Result<()> {
     let app_type: String = std::env::var("GEPH_APP_TYPE")?;
     match app_type.as_str() {
-        "NORMAL" => {
-            smolscale::spawn(autoupdate_loop()).detach();
-            // std::thread::sleep(Duration::from_secs(10));
-            smolscale::spawn(async {
-                let mut app = tide::new();
-                app.at("/*").get(test);
-                app.listen(SERVE_ADDR).await.expect("cannot listen to http");
-            })
-            .detach();
-
-            wry_loop()
-        }
         "WINDOWS_DAEMON" => {
             #[cfg(target_os = "windows")]
             {
@@ -67,13 +55,24 @@ fn main() -> anyhow::Result<()> {
         "INSTALL_WINDOWS_SERVICE" => {
             #[cfg(target_os = "windows")]
             {
-                windows_service::install_windows_service();
+                windows_service::install_windows_service()?;
                 Ok(())
             }
             #[cfg(not(target_os = "windows"))]
             anyhow::bail!("INSTALL_WINDOWS_SERVICE not supported outside Windows!");
         }
-        _ => anyhow::bail!("Incorrect value for GEPH_APP_TYPE env"),
+        _ => {
+            smolscale::spawn(autoupdate_loop()).detach();
+            // std::thread::sleep(Duration::from_secs(10));
+            smolscale::spawn(async {
+                let mut app = tide::new();
+                app.at("/*").get(test);
+                app.listen(SERVE_ADDR).await.expect("cannot listen to http");
+            })
+            .detach();
+
+            wry_loop()
+        }
     }
 }
 
