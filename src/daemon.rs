@@ -12,7 +12,7 @@ use std::{fs::File, io::Write, path::PathBuf};
 #[cfg(target_os = "windows")]
 use crate::windows_service;
 #[cfg(target_os = "windows")]
-use crate::{windows_server_daemon::ControlClient, WINDOWS_SERVICE_ADDR};
+use crate::{windows_daemon::ControlClient, WINDOWS_SERVICE_ADDR};
 
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> =

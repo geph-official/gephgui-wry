@@ -64,8 +64,8 @@ fn main() -> anyhow::Result<()> {
             #[cfg(not(target_os = "windows"))]
             anyhow::bail!("WINDOWS_DAEMON not supported outside Windows!");
         }
-        "INSTALL_WINDOWS_SERVICE" => todo!(),
-        _ => panic!(),
+        "INSTALL_WINDOWS_SERVICE" => windows_service::install_windows_service(),
+        _ => anyhow::bail!("Incorrect value for GEPH_APP_TYPE env"),
     }
 }
 

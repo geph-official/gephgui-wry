@@ -140,7 +140,7 @@ pub fn install_windows_service() -> anyhow::Result<()> {
     };
     let service = service_manager.create_service(&service_info, ServiceAccess::CHANGE_CONFIG)?;
     service.set_description("Geph Daemon Windows Service (geph4-client)")?;
-    eprintln!("Successfully nstalled Windows service");
+    eprintln!("Successfully installed Windows service");
 
     Ok(())
 }
