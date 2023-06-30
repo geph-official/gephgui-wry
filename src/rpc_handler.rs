@@ -11,8 +11,12 @@ use crate::{
     daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION, GEPH_RPC_KEY},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
-    windows_service, WINDOW_HEIGHT, WINDOW_WIDTH,
+    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
+
+#[cfg(target_os = "windows")]
+use crate::windows_service;
+
 use anyhow::Context;
 use nanorpc::JrpcRequest;
 use serde::Deserialize;

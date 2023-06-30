@@ -9,6 +9,7 @@ use anyhow::Context;
 use std::os::windows::process::CommandExt;
 use std::{fs::File, io::Write, path::PathBuf};
 
+#[cfg(target_os = "windows")]
 use crate::windows_service;
 
 /// The daemon RPC key
@@ -145,7 +146,8 @@ impl DaemonConfig {
                 anyhow::bail!("VPN mode not supported on macOS")
             }
         } else {
-            if cfg!(target_os = "windows") {
+            #[cfg(target_os = "windows")]
+            {
                 let windows_service_running = windows_service::is_service_running()?;
                 if !windows_service_running {
                     self.write_config()?;
@@ -153,16 +155,15 @@ impl DaemonConfig {
                 }
 
                 Ok(())
-            } else {
-                let mut cmd = std::process::Command::new(DAEMON_PATH);
-                cmd.arg("connect");
-                cmd.args(&common_args);
-                #[cfg(windows)]
-                cmd.creation_flags(0x08000000);
-                let _child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                eprintln!("*** CHILD ***");
-                Ok(())
             }
+            let mut cmd = std::process::Command::new(DAEMON_PATH);
+            cmd.arg("connect");
+            cmd.args(&common_args);
+            #[cfg(windows)]
+            cmd.creation_flags(0x08000000);
+            let _child = cmd.spawn().context("cannot spawn non-VPN child")?;
+            eprintln!("*** CHILD ***");
+            Ok(())
         }
     }
 
