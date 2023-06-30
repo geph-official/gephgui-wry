@@ -12,7 +12,7 @@ use crate::{
     daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION, GEPH_RPC_KEY},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
-    WINDOW_HEIGHT, WINDOW_WIDTH,
+    windows_service, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use anyhow::Context;
 use nanorpc::JrpcRequest;
@@ -157,27 +157,9 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
             }
         }
     };
-
-    eprintln!("am I connected? {}", is_connected);
-
     if !is_connected {
         params.daemon_conf.start().context("cannot start daemon")?;
         eprintln!("supposedly started daemon");
-    }
-    loop {
-        match handle_daemon_rpc(((json!(request)).to_string(),)) {
-            Ok(result) => {
-                let is_connected = result.parse::<bool>()?;
-                if is_connected {
-                    eprintln!("connected to daemon!");
-                    break;
-                }
-            }
-            Err(err) => {
-                eprintln!("still waiting to connect daemon!: {}", err);
-                std::thread::sleep(Duration::from_secs(1));
-            }
-        }
     }
 
     Ok("".into())
@@ -194,6 +176,9 @@ fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     };
     handle_daemon_rpc(((json!(request)).to_string(),))?;
     let _ = deconfigure_proxy();
+
+    windows_service::stop_service()?;
+
     eprintln!("***** DAEMON STOPPED :V *****");
 
     Ok("".into())
