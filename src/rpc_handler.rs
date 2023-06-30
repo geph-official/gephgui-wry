@@ -1,8 +1,7 @@
 use std::{
     io::{Read, Write},
     process::{Command, Stdio},
-    sync::atomic::{AtomicBool, Ordering},
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(windows)]
@@ -12,14 +11,13 @@ use crate::{
     daemon::{debugpack_path, DaemonConfig, DAEMON_VERSION, GEPH_RPC_KEY},
     mtbus::mt_enqueue,
     pac::{configure_proxy, deconfigure_proxy},
-    WINDOW_HEIGHT, WINDOW_WIDTH,
+    windows_service, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use anyhow::Context;
-
-use once_cell::sync::Lazy;
-use parking_lot::Mutex;
+use nanorpc::JrpcRequest;
 use serde::Deserialize;
 
+use serde_json::json;
 use tide::convert::{DeserializeOwned, Serialize};
 use wry::application::dpi::LogicalSize;
 use wry::{
@@ -66,10 +64,6 @@ struct DaemonConfigPlus {
     daemon_conf: DaemonConfig,
     proxy_autoconf: bool,
 }
-
-pub type DeathBox = Mutex<Option<std::process::Child>>;
-
-pub static RUNNING_DAEMON: Lazy<DeathBox> = Lazy::new(Default::default);
 
 fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
     println!("handle_sync {:?}", params);
@@ -137,47 +131,61 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
     Ok(s)
 }
 
-static PROXY_CONFIGURED: AtomicBool = AtomicBool::new(false);
-
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Installs the Windows service if it doesn't exist
+        windows_service::install_windows_service();
+    }
+
     let params = params.0;
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;
-        PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
-    let mut rd = RUNNING_DAEMON.lock();
-    if rd.is_none() {
-        let daemon = params.daemon_conf.start().context("cannot start daemon")?;
-        *rd = Some(daemon);
-    }
-    std::thread::spawn(move || loop {
-        {
-            let mut daemon = RUNNING_DAEMON.lock();
-            if let Some(d) = daemon.as_mut() {
-                if let Ok(Some(_)) = d.try_wait() {
-                    std::thread::spawn(move || handle_stop_daemon(vec![]));
-                }
+
+    let request = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: "is_connected".into(),
+        params: [].to_vec(),
+        id: nanorpc::JrpcId::Number(1),
+    };
+    let is_connected: bool = match handle_daemon_rpc(((json!(request)).to_string(),)) {
+        Ok(result) => result.parse::<bool>()?,
+        Err(err) => {
+            // TODO: smarter error handling
+            // e.g. `machine actively refused connection` vs. `connection refused`
+            if err.to_string().to_lowercase().contains("refused") {
+                false
             } else {
-                return;
+                anyhow::bail!("error while checking daemon connectivity: {}", err);
             }
         }
-        std::thread::sleep(Duration::from_secs(1));
-    });
+    };
+    if !is_connected {
+        params.daemon_conf.start().context("cannot start daemon")?;
+        eprintln!("supposedly started daemon");
+    }
+
     Ok("".into())
 }
 
 /// Handles a request to stop the daemon
 fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
-    let mut rd = RUNNING_DAEMON.lock();
-    if let Some(mut rd) = rd.take() {
-        eprintln!("***** STOPPING DAEMON *****");
-        rd.kill()?;
-        rd.wait()?;
-    }
-    if PROXY_CONFIGURED.swap(false, Ordering::SeqCst) {
-        deconfigure_proxy()?;
-    }
+    eprintln!("***** STOPPING DAEMON *****");
+    let request = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: "kill".into(),
+        params: [].to_vec(),
+        id: nanorpc::JrpcId::Number(1),
+    };
+    handle_daemon_rpc(((json!(request)).to_string(),))?;
+    let _ = deconfigure_proxy();
+
+    windows_service::stop_service()?;
+
+    eprintln!("***** DAEMON STOPPED :V *****");
+
     Ok("".into())
 }
 

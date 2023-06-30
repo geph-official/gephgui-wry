@@ -167,7 +167,7 @@ impl AutoupdateDownloader {
         let mut tmp_dir = Builder::new().tempdir()?.into_path();
         let filename = res
             .get_url()
-            .split("/")
+            .split('/')
             .last()
             .context("Unable to get update filename")?;
         tmp_dir.push(filename);

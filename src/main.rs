@@ -27,7 +27,9 @@ mod fakefs;
 mod mtbus;
 mod pac;
 mod rpc_handler;
-use rpc_handler::{global_rpc_handler, RUNNING_DAEMON};
+mod windows_service;
+
+use rpc_handler::global_rpc_handler;
 const SERVE_ADDR: &str = "127.0.0.1:5678";
 
 const WINDOW_WIDTH: i32 = 380;
@@ -60,9 +62,11 @@ fn wry_loop() -> anyhow::Result<()> {
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
         })
+        .with_resizable(true)
         .with_title("Geph")
         .with_window_icon(Some(logo_icon))
         .build(&event_loop)?;
+    eprintln!("resizable?: {}", window.is_resizable());
     let initjs = include_str!("init.js");
 
     #[cfg(target_os = "macos")]
@@ -72,7 +76,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
-        .with_initialization_script(&initjs)
+        .with_initialization_script(initjs)
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
@@ -95,15 +99,11 @@ fn wry_loop() -> anyhow::Result<()> {
                 ..
             } => {
                 tracing::info!("receiving CloseRequested event");
-                if RUNNING_DAEMON.lock().is_some() {
-                    tracing::info!("hiding the window now");
-                    webview.window().set_visible(false)
-                } else {
-                    *control_flow = ControlFlow::Exit;
-                    std::process::exit(0);
-                }
+                *control_flow = ControlFlow::Exit;
+                std::process::exit(0);
             }
             Event::RedrawRequested(_) => {
+                tracing::info!("REDRAW REQUESTED!!!!!!!!!!!!!!!!!!!!!!!");
                 webview.resize().expect("cannot resize window");
             }
             Event::MenuEvent { .. } => webview.window().set_visible(true),

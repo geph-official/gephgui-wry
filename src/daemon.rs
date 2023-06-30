@@ -1,19 +1,22 @@
 use once_cell::sync::Lazy;
 use rand::Rng;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
 use tap::Tap;
 
 use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
+use std::{fs::File, io::Write, path::PathBuf};
+
+use crate::windows_service;
 
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> =
     Lazy::new(|| format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>()));
 
 /// Configuration for starting the daemon
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DaemonConfig {
     pub username: String,
     pub password: String,
@@ -52,9 +55,16 @@ pub fn debugpack_path() -> PathBuf {
     base
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum AuthKind {
+    AuthPassword { username: String, password: String },
+
+    AuthKeypair { sk_path: String },
+}
+
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
-    pub fn start(self) -> anyhow::Result<std::process::Child> {
+    pub fn start(self) -> anyhow::Result<()> {
         std::env::set_var("GEPH_RPC_KEY", GEPH_RPC_KEY.clone());
         let common_args = Vec::new()
             .tap_mut(|v| {
@@ -93,6 +103,7 @@ impl DaemonConfig {
                 v.push(self.password.clone());
             });
 
+        // Start the daemon as usual
         if self.vpn_mode {
             #[cfg(target_os = "linux")]
             {
@@ -102,35 +113,70 @@ impl DaemonConfig {
                 cmd.arg("--vpn-mode").arg("tun-route");
                 cmd.args(&common_args);
                 let child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(child)
+                Ok(())
             }
             #[cfg(target_os = "windows")]
             {
                 if !is_elevated::is_elevated() {
                     anyhow::bail!("VPN mode requires admin privileges on Windows!!!")
                 }
-                let mut cmd = std::process::Command::new(DAEMON_PATH);
-                cmd.arg("connect");
-                cmd.arg("--vpn-mode").arg("windivert");
-                cmd.args(&common_args);
-                #[cfg(windows)]
-                cmd.creation_flags(0x08000000);
-                let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(child)
+                if cfg!(target_os = "windows") {
+                    let windows_service_running = windows_service::is_service_running()?;
+                    if !windows_service_running {
+                        let common_args: Vec<&str> =
+                            common_args.iter().map(|s| s.as_str()).collect();
+                        let vpn_mode_args = vec!["--vpn-mode", "windivert"];
+
+                        let mut args = Vec::new();
+                        args.push("connect");
+                        args.extend(common_args);
+                        args.extend(vpn_mode_args);
+                        eprintln!("vpn mode args: {:?}", args);
+
+                        self.write_config()?;
+                        windows_service::start_service()?;
+                    }
+                }
+
+                Ok(())
             }
             #[cfg(target_os = "macos")]
             {
                 anyhow::bail!("VPN mode not supported on macOS")
             }
         } else {
-            let mut cmd = std::process::Command::new(DAEMON_PATH);
-            cmd.arg("connect");
-            cmd.args(&common_args);
-            #[cfg(windows)]
-            cmd.creation_flags(0x08000000);
-            let child = cmd.spawn().context("cannot spawn non-VPN child")?;
-            eprintln!("*** CHILD ***");
-            Ok(child)
+            if cfg!(target_os = "windows") {
+                let windows_service_running = windows_service::is_service_running()?;
+                if !windows_service_running {
+                    self.write_config()?;
+                    windows_service::start_service()?;
+                }
+
+                Ok(())
+            } else {
+                let mut cmd = std::process::Command::new(DAEMON_PATH);
+                cmd.arg("connect");
+                cmd.args(&common_args);
+                #[cfg(windows)]
+                cmd.creation_flags(0x08000000);
+                let _child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                eprintln!("*** CHILD ***");
+                Ok(())
+            }
         }
+    }
+
+    fn write_config(&self) -> anyhow::Result<()> {
+        let config = self.clone();
+        let config_json = serde_json::to_string(&config)?;
+        // TODO: save this in a more secure location / resolve the Windows username and write to `~/.config/geph4-credentials`.
+        let config_file_path = PathBuf::from("C:/ProgramData/geph4-credentials/config.json");
+        let config_file_dir = config_file_path.parent().unwrap();
+        if !config_file_dir.exists() {
+            std::fs::create_dir_all(config_file_dir)?;
+        }
+        let mut file = File::create(&config_file_path)?;
+        file.write_all(config_json.as_bytes())?;
+        Ok(())
     }
 }
