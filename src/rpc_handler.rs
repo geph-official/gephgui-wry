@@ -186,6 +186,7 @@ fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     handle_daemon_rpc(((json!(request)).to_string(),))?;
     let _ = deconfigure_proxy();
 
+    #[cfg(target_os = "windows")]
     windows_service::stop_service()?;
 
     eprintln!("***** DAEMON STOPPED :V *****");
