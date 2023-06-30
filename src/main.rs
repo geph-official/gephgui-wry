@@ -41,16 +41,24 @@ const WINDOW_WIDTH: i32 = 380;
 const WINDOW_HEIGHT: i32 = 600;
 
 fn main() -> anyhow::Result<()> {
-    config_logging();
-    smolscale::spawn(autoupdate_loop()).detach();
-    // std::thread::sleep(Duration::from_secs(10));
-    smolscale::spawn(async {
-        let mut app = tide::new();
-        app.at("/*").get(test);
-        app.listen(SERVE_ADDR).await.expect("cannot listen to http");
-    })
-    .detach();
-    wry_loop()
+    let app_type: String = std::env::var("GEPH_APP_TYPE")?;
+    match app_type.as_str() {
+        "NORMAL" => {
+            smolscale::spawn(autoupdate_loop()).detach();
+            // std::thread::sleep(Duration::from_secs(10));
+            smolscale::spawn(async {
+                let mut app = tide::new();
+                app.at("/*").get(test);
+                app.listen(SERVE_ADDR).await.expect("cannot listen to http");
+            })
+            .detach();
+
+            wry_loop()
+        }
+        "WINDOWS_DAEMON" => Ok(()),
+        "INSTALL_WINDOWS_SERVICE" => Ok(()),
+        _ => panic!(),
+    }
 }
 
 fn wry_loop() -> anyhow::Result<()> {
