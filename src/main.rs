@@ -29,7 +29,7 @@ mod pac;
 mod rpc_handler;
 
 #[cfg(target_os = "windows")]
-mod windows_server_daemon;
+mod windows_daemon;
 #[cfg(target_os = "windows")]
 mod windows_service;
 
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
         "WINDOWS_DAEMON" => {
             #[cfg(target_os = "windows")]
             {
-                windows_server_daemon::run();
+                windows_daemon::run();
                 Ok(())
             }
             #[cfg(not(target_os = "windows"))]
