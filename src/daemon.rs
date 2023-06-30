@@ -1,15 +1,16 @@
+use anyhow::Context;
+use nanorpc_http::client::HttpRpcTransport;
 use once_cell::sync::Lazy;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-
 use tap::Tap;
 
-use anyhow::Context;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::{fs::File, io::Write, path::PathBuf};
 
-use crate::windows_service;
+use crate::{windows_service, WINDOWS_SERVICE_ADDR};
+use crate::windows_server_daemon::ControlClient;
 
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> =
@@ -123,18 +124,22 @@ impl DaemonConfig {
                 if cfg!(target_os = "windows") {
                     let windows_service_running = windows_service::is_service_running()?;
                     if !windows_service_running {
-                        let common_args: Vec<&str> =
-                            common_args.iter().map(|s| s.as_str()).collect();
-                        let vpn_mode_args = vec!["--vpn-mode", "windivert"];
+                        smolscale::block_on(async move {
+                            let common_args: Vec<&str> =
+                                common_args.iter().map(|s| s.as_str()).collect();
+                            let vpn_mode_args = vec!["--vpn-mode", "windivert"];
 
-                        let mut args = Vec::new();
-                        args.push("connect");
-                        args.extend(common_args);
-                        args.extend(vpn_mode_args);
-                        eprintln!("vpn mode args: {:?}", args);
+                            let mut args = Vec::new();
+                            args.push("connect");
+                            args.extend(common_args);
+                            args.extend(vpn_mode_args);
+                            eprintln!("vpn mode args: {:?}", args);
 
-                        self.write_config()?;
-                        windows_service::start_service()?;
+                            self.write_config().unwrap();
+                            // windows_service::start_service()?;
+                            let conn = ControlClient::from(HttpRpcTransport::new(WINDOWS_SERVICE_ADDR.parse().unwrap()));
+                            conn.start(args.into_iter().map(|arg| String::from(arg)).collect()).await
+                        })?;
                     }
                 }
 

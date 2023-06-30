@@ -48,6 +48,9 @@ native-dialog = "0.5"
 open = "4.1.0"
 nanorpc = "0.1.12"
 windows-service = "0.6.0"
+nanorpc-http = "0.1.2"
+async-trait = "0.1.68"
+thiserror = "1.0.40"
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"

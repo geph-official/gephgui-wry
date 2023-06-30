@@ -30,9 +30,12 @@ mod rpc_handler;
 
 #[cfg(target_os = "windows")]
 mod windows_service;
+#[cfg(target_os = "windows")]
+mod windows_server_daemon;
 
 use rpc_handler::global_rpc_handler;
 const SERVE_ADDR: &str = "127.0.0.1:5678";
+const WINDOWS_SERVICE_ADDR: &str = "127.0.0.1:6789";
 
 const WINDOW_WIDTH: i32 = 380;
 const WINDOW_HEIGHT: i32 = 600;
