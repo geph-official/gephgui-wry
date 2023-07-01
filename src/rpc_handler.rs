@@ -1,7 +1,8 @@
 use std::{
     io::{Read, Write},
     process::{Command, Stdio},
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    sync::atomic::{AtomicBool, Ordering},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(windows)]
@@ -13,10 +14,6 @@ use crate::{
     pac::{configure_proxy, deconfigure_proxy},
     WINDOW_HEIGHT, WINDOW_WIDTH,
 };
-
-#[cfg(target_os = "windows")]
-use crate::windows_service;
-
 use anyhow::Context;
 use nanorpc::JrpcRequest;
 use serde::Deserialize;
@@ -137,15 +134,10 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
 
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
-    #[cfg(target_os = "windows")]
-    {
-        // Installs the Windows service if it doesn't exist
-        windows_service::install_windows_service();
-    }
-
     let params = params.0;
     if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
         configure_proxy().context("cannot configure proxy")?;
+        // PROXY_CONFIGURED.store(true, Ordering::SeqCst);
     }
 
     let request = JrpcRequest {
@@ -154,23 +146,24 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
         params: [].to_vec(),
         id: nanorpc::JrpcId::Number(1),
     };
+
     let is_connected: bool = match handle_daemon_rpc(((json!(request)).to_string(),)) {
         Ok(result) => result.parse::<bool>()?,
         Err(err) => {
-            // TODO: smarter error handling
-            // e.g. `machine actively refused connection` vs. `connection refused`
-            if err.to_string().to_lowercase().contains("refused") {
+            if err
+                .to_string()
+                .to_lowercase()
+                .contains("connection refused")
+            {
                 false
             } else {
-                anyhow::bail!("error while checking daemon connectivity: {}", err);
+                anyhow::bail!(err);
             }
         }
     };
     if !is_connected {
         params.daemon_conf.start().context("cannot start daemon")?;
-        eprintln!("supposedly started daemon");
     }
-
     Ok("".into())
 }
 
@@ -185,10 +178,6 @@ fn handle_stop_daemon(_: Vec<serde_json::Value>) -> anyhow::Result<String> {
     };
     handle_daemon_rpc(((json!(request)).to_string(),))?;
     let _ = deconfigure_proxy();
-
-    #[cfg(target_os = "windows")]
-    windows_service::stop_service()?;
-
     eprintln!("***** DAEMON STOPPED :V *****");
 
     Ok("".into())

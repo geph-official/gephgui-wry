@@ -27,53 +27,23 @@ mod fakefs;
 mod mtbus;
 mod pac;
 mod rpc_handler;
-
-#[cfg(target_os = "windows")]
-mod windows_daemon;
-#[cfg(target_os = "windows")]
-mod windows_service;
-
 use rpc_handler::global_rpc_handler;
 const SERVE_ADDR: &str = "127.0.0.1:5678";
-const WINDOWS_SERVICE_ADDR: &str = "127.0.0.1:6789";
 
 const WINDOW_WIDTH: i32 = 380;
 const WINDOW_HEIGHT: i32 = 600;
 
 fn main() -> anyhow::Result<()> {
-    let app_type: String = std::env::var("GEPH_APP_TYPE")?;
-    match app_type.as_str() {
-        "WINDOWS_DAEMON" => {
-            #[cfg(target_os = "windows")]
-            {
-                windows_daemon::run();
-                Ok(())
-            }
-            #[cfg(not(target_os = "windows"))]
-            anyhow::bail!("WINDOWS_DAEMON not supported outside Windows!");
-        }
-        "INSTALL_WINDOWS_SERVICE" => {
-            #[cfg(target_os = "windows")]
-            {
-                windows_service::install_windows_service()?;
-                Ok(())
-            }
-            #[cfg(not(target_os = "windows"))]
-            anyhow::bail!("INSTALL_WINDOWS_SERVICE not supported outside Windows!");
-        }
-        _ => {
-            smolscale::spawn(autoupdate_loop()).detach();
-            // std::thread::sleep(Duration::from_secs(10));
-            smolscale::spawn(async {
-                let mut app = tide::new();
-                app.at("/*").get(test);
-                app.listen(SERVE_ADDR).await.expect("cannot listen to http");
-            })
-            .detach();
-
-            wry_loop()
-        }
-    }
+    config_logging();
+    smolscale::spawn(autoupdate_loop()).detach();
+    // std::thread::sleep(Duration::from_secs(10));
+    smolscale::spawn(async {
+        let mut app = tide::new();
+        app.at("/*").get(test);
+        app.listen(SERVE_ADDR).await.expect("cannot listen to http");
+    })
+    .detach();
+    wry_loop()
 }
 
 fn wry_loop() -> anyhow::Result<()> {
@@ -104,7 +74,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
-        .with_initialization_script(initjs)
+        .with_initialization_script(&initjs)
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
