@@ -9,8 +9,35 @@ use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 
 /// The daemon RPC key
-pub static GEPH_RPC_KEY: Lazy<String> =
-    Lazy::new(|| format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>()));
+pub static GEPH_RPC_KEY: Lazy<String> = Lazy::new(|| {
+    // try reading from file
+    let mut rpc_key_path = dirs::config_dir().unwrap();
+    rpc_key_path.push("geph4-credentials/rpc_key");
+    match rpc_key_path.exists() {
+        true => {
+            let key: String = bincode::deserialize(
+                &std::fs::read(rpc_key_path)
+                    .context("could not read RPC key from file")
+                    .unwrap(),
+            )
+            .context("could not deserialize RPC key")
+            .unwrap();
+            key
+        }
+        false => {
+            let key = format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>());
+            std::fs::write(
+                rpc_key_path,
+                bincode::serialize(&key)
+                    .context("could not serialize RPC key")
+                    .unwrap(),
+            )
+            .context("could not write RPC key to file")
+            .unwrap();
+            key
+        }
+    }
+});
 
 /// Configuration for starting the daemon
 #[derive(Deserialize, Debug)]
