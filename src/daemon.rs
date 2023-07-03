@@ -8,36 +8,69 @@ use anyhow::Context;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 
+use crate::mtbus::mt_enqueue;
+
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> = Lazy::new(|| {
-    // try reading from file
-    let mut rpc_key_path = dirs::config_dir()
-        .context("file system error: could not find config directory")
-        .unwrap();
-    rpc_key_path.push("geph4-credentials/");
-    std::fs::create_dir_all(&rpc_key_path)
-        .context("file system error: could not create cache directory")
-        .unwrap();
-    rpc_key_path.push("rpc_key");
-    // if key exists, return it
-    if let Ok(key_bytes) = std::fs::read(&rpc_key_path) {
-        let maybe_key: Result<String, _> = bincode::deserialize(&key_bytes);
-        if let Ok(key) = maybe_key {
-            return key;
+    smolscale::block_on(async {
+        async fn fallible() -> anyhow::Result<String> {
+            // try reading from file
+            let mut rpc_key_path = dirs::config_dir().context("could not find config directory")?;
+            rpc_key_path.push("geph4-credentials/");
+            std::fs::create_dir_all(&rpc_key_path).context("could not create cache directory")?;
+            rpc_key_path.push("rpc_key");
+            // if key exists, return it
+            if let Ok(key_bytes) = std::fs::read(&rpc_key_path) {
+                let maybe_key: Result<String, _> = bincode::deserialize(&key_bytes);
+                if let Ok(key) = maybe_key {
+                    return Ok(key);
+                }
+            }
+            // else, make a new key and store it in the right location
+            let key = format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>());
+            std::fs::write(
+                rpc_key_path,
+                bincode::serialize(&key).context("could not serialize RPC key")?,
+            )
+            .context("could not write RPC key to file")?;
+            Ok(key)
         }
-    }
-    // else, make a new key and store it in the right location
-    let key = format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>());
-    std::fs::write(
-        rpc_key_path,
-        bincode::serialize(&key)
-            .context("could not serialize RPC key")
-            .unwrap(),
-    )
-    .context("file system error: could not write RPC key to file")
-    .unwrap();
-    key
+
+        match fallible().await {
+            Ok(key) => key,
+            Err(err) => {
+                show_fatal_error(err.to_string()).await;
+                std::process::exit(1);
+            }
+        }
+    })
 });
+
+async fn show_fatal_error(err: String) {
+    #[cfg(target_os = "macos")]
+    let _ = {
+        use rfd::{MessageButtons, MessageLevel};
+        rfd::AsyncMessageDialog::new()
+            .set_buttons(MessageButtons::Ok)
+            .set_level(MessageLevel::Info)
+            .set_title("System Error / 系统错误")
+            .set_description(&format!("A fatal error has occurred\n系统错误:\n{}", err))
+            .show()
+            .await
+    };
+    #[cfg(not(target_os = "macos"))]
+    let _ = {
+        let (send, recv) = smol::channel::bounded(1);
+        mt_enqueue(move |_wv| {
+            let res = native_dialog::MessageDialog::new()
+                .set_title("System Error / 系统错误")
+                .set_text(&format!("A fatal error has occurred\n系统错误:\n{}", err))
+                .show_alert();
+            let _ = send.try_send(res.unwrap_or_default());
+        });
+        recv.recv().await
+    };
+}
 
 /// Configuration for starting the daemon
 #[derive(Deserialize, Debug)]
