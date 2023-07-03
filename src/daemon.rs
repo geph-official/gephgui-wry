@@ -11,32 +11,32 @@ use std::path::PathBuf;
 /// The daemon RPC key
 pub static GEPH_RPC_KEY: Lazy<String> = Lazy::new(|| {
     // try reading from file
-    let mut rpc_key_path = dirs::config_dir().unwrap();
-    rpc_key_path.push("geph4-credentials/rpc_key");
-    match rpc_key_path.exists() {
-        true => {
-            let key: String = bincode::deserialize(
-                &std::fs::read(rpc_key_path)
-                    .context("could not read RPC key from file")
-                    .unwrap(),
-            )
-            .context("could not deserialize RPC key")
-            .unwrap();
-            key
-        }
-        false => {
-            let key = format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>());
-            std::fs::write(
-                rpc_key_path,
-                bincode::serialize(&key)
-                    .context("could not serialize RPC key")
-                    .unwrap(),
-            )
-            .context("could not write RPC key to file")
-            .unwrap();
-            key
+    let mut rpc_key_path = dirs::config_dir()
+        .context("file system error: could not find config directory")
+        .unwrap();
+    rpc_key_path.push("geph4-credentials/");
+    std::fs::create_dir_all(&rpc_key_path)
+        .context("file system error: could not create cache directory")
+        .unwrap();
+    rpc_key_path.push("rpc_key");
+    // if key exists, return it
+    if let Ok(key_bytes) = std::fs::read(&rpc_key_path) {
+        let maybe_key: Result<String, _> = bincode::deserialize(&key_bytes);
+        if let Ok(key) = maybe_key {
+            return key;
         }
     }
+    // else, make a new key and store it in the right location
+    let key = format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>());
+    std::fs::write(
+        rpc_key_path,
+        bincode::serialize(&key)
+            .context("could not serialize RPC key")
+            .unwrap(),
+    )
+    .context("file system error: could not write RPC key to file")
+    .unwrap();
+    key
 });
 
 /// Configuration for starting the daemon
