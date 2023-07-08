@@ -149,13 +149,7 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
 
     let is_connected: bool = match handle_daemon_rpc(((json!(request)).to_string(),)) {
         Ok(result) => result.parse::<bool>()?,
-        Err(err) => {
-            if err.to_string().to_lowercase().contains("refused") {
-                false
-            } else {
-                anyhow::bail!(err);
-            }
-        }
+        Err(err) => false,
     };
     if !is_connected {
         params.daemon_conf.start().context("cannot start daemon")?;
