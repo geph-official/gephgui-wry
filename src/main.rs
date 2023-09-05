@@ -78,8 +78,7 @@ fn wry_loop() -> anyhow::Result<()> {
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
-    #[cfg(feature = "tray")]
-    let _tray = create_systray(&event_loop)?;
+
 
     let evt_proxy = event_loop.create_proxy();
     std::thread::spawn(move || loop {

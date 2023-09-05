@@ -10,7 +10,7 @@ edition = "2018"
 
 
 [features]
-tray=["tao/tray", "wry/tray"]
+# tray=["tao/tray", "wry/tray"]
 
 [dependencies]
 tracing = "0.1.35"

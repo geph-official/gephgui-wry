@@ -28,12 +28,15 @@ pub async fn autoupdate_loop() {
                 let version = update.version.clone();
 
                 #[cfg(target_os = "linux")]
-                let _notification_ack = {
+                {
                     let (send, recv) = smol::channel::bounded(1);
 
                     mt_enqueue(move |_wv| {
-                        let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade using the 'flatpak update' command.\n找到更新版本的密雾通 ({version})。 使用'flatpak update'命令进行更新。\n找到更新版本的密霧通 ({version})。 使用'flatpak update'命令進行更新。")).show_alert();
-                        let _ = send.try_send(res.unwrap_or_default());
+                        let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade using the 'flatpak update' command.\n找到更新版本的迷雾通 ({version})。 使用'flatpak update'命令进行更新。\n找到更新版本的迷霧通 ({version})。 使用'flatpak update'命令進行更新。")).show_alert();
+                        let _ = {
+                            res.unwrap_or_default();
+                            send.try_send(())
+                        };
                     });
                     recv.recv().await?
                 };
