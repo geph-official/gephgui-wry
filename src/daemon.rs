@@ -114,7 +114,7 @@ pub fn debugpack_path() -> PathBuf {
 
 impl DaemonConfig {
     /// Starts the daemon, returning a death handle.
-    pub fn start(self) -> anyhow::Result<std::process::Child> {
+    pub fn start(self) -> anyhow::Result<()> {
         std::env::set_var("GEPH_RPC_KEY", GEPH_RPC_KEY.clone());
         let common_args = Vec::new()
             .tap_mut(|v| {
@@ -162,7 +162,7 @@ impl DaemonConfig {
                 cmd.arg("--vpn-mode").arg("tun-route");
                 cmd.args(&common_args);
                 let child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(child)
+                Ok(())
             }
             #[cfg(target_os = "windows")]
             {
@@ -176,7 +176,7 @@ impl DaemonConfig {
                 #[cfg(windows)]
                 cmd.creation_flags(0x08000000);
                 let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(child)
+                Ok(())
             }
             #[cfg(target_os = "macos")]
             {
@@ -190,7 +190,7 @@ impl DaemonConfig {
             cmd.creation_flags(0x08000000);
             let child = cmd.spawn().context("cannot spawn non-VPN child")?;
             eprintln!("*** CHILD ***");
-            Ok(child)
+            Ok(())
         }
     }
 }
