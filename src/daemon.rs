@@ -166,16 +166,12 @@ impl DaemonConfig {
             }
             #[cfg(target_os = "windows")]
             {
-                if !is_elevated::is_elevated() {
-                    anyhow::bail!("VPN mode requires admin privileges on Windows!!!")
-                }
-                let mut cmd = std::process::Command::new(DAEMON_PATH);
+                let mut cmd = runas::Command::new(DAEMON_PATH);
                 cmd.arg("connect");
                 cmd.arg("--vpn-mode").arg("windivert");
                 cmd.args(&common_args);
-                #[cfg(windows)]
-                cmd.creation_flags(0x08000000);
-                let mut child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                cmd.show(false);
+                std::thread::spawn(move || cmd.status().unwrap());
                 Ok(())
             }
             #[cfg(target_os = "macos")]
@@ -188,8 +184,7 @@ impl DaemonConfig {
             cmd.args(&common_args);
             #[cfg(windows)]
             cmd.creation_flags(0x08000000);
-            let child = cmd.spawn().context("cannot spawn non-VPN child")?;
-            eprintln!("*** CHILD ***");
+            cmd.spawn().context("cannot spawn non-VPN child")?;
             Ok(())
         }
     }
