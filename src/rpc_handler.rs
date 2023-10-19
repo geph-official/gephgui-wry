@@ -104,12 +104,12 @@ fn handle_sync(params: (String, String, bool)) -> anyhow::Result<String> {
 fn handle_daemon_rpc(params: (String,)) -> anyhow::Result<String> {
     Ok(
         ureq::post(&format!("http://127.0.0.1:9809/{}", GEPH_RPC_KEY.clone()))
-            .send_string(&params.0)?
-            .into_string()
+            .send_string(&params.0)
             .map_err(|e| {
                 let _ = deconfigure_proxy();
                 e
-            })?,
+            })?
+            .into_string()?,
     )
 }
 
