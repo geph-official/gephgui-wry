@@ -158,6 +158,7 @@ impl AutoupdateDownloader {
     }
 
     async fn download_update(&self) -> anyhow::Result<String> {
+        eprintln!("about to update...");
         let metadata = self
             .metadata()
             .await?
@@ -165,23 +166,23 @@ impl AutoupdateDownloader {
             .context("error getting track")?
             .clone();
         let url = self.resolve_url(&metadata);
-        let res = ureq::get(&url).call()?;
+        eprintln!("downloading update from {url}...");
+        let mut res = isahc::get_async(&url).await?;
 
         let mut tmp_dir = Builder::new().tempdir()?.into_path();
-        let filename = res
-            .get_url()
+        let filename = url
             .split("/")
             .last()
             .context("Unable to get update filename")?;
         tmp_dir.push(filename);
-        let mut dest = File::create(&tmp_dir)?;
         let filepath_str = tmp_dir
             .as_os_str()
             .to_str()
             .context("Error converting tmp directory to string")?;
 
         create_dir_all(tmp_dir.parent().context("Error getting tmp file dir")?)?;
-        copy(&mut res.into_reader().take(20_000_000), &mut dest)?;
+        res.copy_to(smol::fs::File::create(filepath_str).await?)
+            .await?;
 
         eprintln!(
             "Update v{} was successfully downloaded to {}",

@@ -105,7 +105,11 @@ fn handle_daemon_rpc(params: (String,)) -> anyhow::Result<String> {
     Ok(
         ureq::post(&format!("http://127.0.0.1:9809/{}", GEPH_RPC_KEY.clone()))
             .send_string(&params.0)?
-            .into_string()?,
+            .into_string()
+            .map_err(|e| {
+                let _ = deconfigure_proxy();
+                e
+            })?,
     )
 }
 
@@ -135,10 +139,6 @@ fn handle_binder_rpc(params: (String,)) -> anyhow::Result<String> {
 /// Handles a request to start the daemon
 fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     let params = params.0;
-    if params.proxy_autoconf && !params.daemon_conf.vpn_mode {
-        configure_proxy().context("cannot configure proxy")?;
-        // PROXY_CONFIGURED.store(true, Ordering::SeqCst);
-    }
 
     let request = JrpcRequest {
         jsonrpc: "2.0".into(),
@@ -147,13 +147,21 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
         id: nanorpc::JrpcId::Number(1),
     };
 
-    let is_connected: bool = match handle_daemon_rpc(((json!(request)).to_string(),)) {
-        Ok(result) => result.parse::<bool>()?,
-        Err(err) => false,
-    };
-    if !is_connected {
-        params.daemon_conf.start().context("cannot start daemon")?;
+    let conf_proxy = params.proxy_autoconf && !params.daemon_conf.vpn_mode;
+    params.daemon_conf.start().context("cannot start daemon")?;
+
+    loop {
+        match handle_daemon_rpc(((json!(request)).to_string(),)) {
+            Ok(_) => {
+                if conf_proxy {
+                    configure_proxy().context("cannot configure proxy")?;
+                }
+                break;
+            }
+            Err(_) => {}
+        };
     }
+
     Ok("".into())
 }
 

@@ -78,8 +78,6 @@ fn wry_loop() -> anyhow::Result<()> {
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
-
-
     let evt_proxy = event_loop.create_proxy();
     std::thread::spawn(move || loop {
         let evt = mt_next();
