@@ -65,7 +65,7 @@ fn wry_loop() -> anyhow::Result<()> {
         .with_window_icon(Some(logo_icon))
         .build(&event_loop)?;
     eprintln!("resizable?: {}", window.is_resizable());
-    let initjs = include_str!("init.js");
+    let initjs = include_str!("init.js").to_string();
 
     #[cfg(target_os = "macos")]
     // horrifying HACK
@@ -74,7 +74,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
-        .with_initialization_script(initjs)
+        .with_initialization_script(&initjs)
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
