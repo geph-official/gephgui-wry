@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use smol_timeout::TimeoutExt;
 use std::{
     collections::HashMap,
-    fs::{create_dir_all, File},
-    io::{copy, Read},
+    fs::{create_dir_all},
+    io::{Read},
     time::Duration,
 };
 use tempfile::Builder;
@@ -171,7 +171,7 @@ impl AutoupdateDownloader {
 
         let mut tmp_dir = Builder::new().tempdir()?.into_path();
         let filename = url
-            .split("/")
+            .split('/')
             .last()
             .context("Unable to get update filename")?;
         tmp_dir.push(filename);

@@ -1,8 +1,7 @@
 use std::{
     io::{Read, Write},
     process::{Command, Stdio},
-    sync::atomic::{AtomicBool, Ordering},
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(windows)]
@@ -105,11 +104,7 @@ fn handle_daemon_rpc(params: (String,)) -> anyhow::Result<String> {
     Ok(
         ureq::post(&format!("http://127.0.0.1:9809/{}", GEPH_RPC_KEY.clone()))
             .send_string(&params.0)?
-            .into_string()
-            .map_err(|e| {
-                let _ = deconfigure_proxy();
-                e
-            })?,
+            .into_string()?,
     )
 }
 
@@ -148,14 +143,14 @@ fn handle_start_daemon(params: (DaemonConfigPlus,)) -> anyhow::Result<String> {
     };
 
     let conf_proxy = params.proxy_autoconf && !params.daemon_conf.vpn_mode;
+    if conf_proxy {
+        configure_proxy().context("cannot configure proxy")?;
+    }
     params.daemon_conf.start().context("cannot start daemon")?;
 
     loop {
         match handle_daemon_rpc(((json!(request)).to_string(),)) {
             Ok(_) => {
-                if conf_proxy {
-                    configure_proxy().context("cannot configure proxy")?;
-                }
                 break;
             }
             Err(_) => {}

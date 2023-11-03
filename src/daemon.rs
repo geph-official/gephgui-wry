@@ -66,7 +66,10 @@ async fn show_fatal_error(err: String) {
                 .set_title("System Error / 系统错误")
                 .set_text(&format!("A fatal error has occurred\n系统错误:\n{}", err))
                 .show_alert();
-            let _ = send.try_send(res.unwrap_or_default());
+            let _ = {
+                res.unwrap_or_default();
+                send.try_send(())
+            };
         });
         recv.recv().await
     };
@@ -161,7 +164,7 @@ impl DaemonConfig {
                 cmd.arg("connect");
                 cmd.arg("--vpn-mode").arg("tun-route");
                 cmd.args(&common_args);
-                let child = cmd.spawn().context("cannot spawn non-VPN child")?;
+                let _child = cmd.spawn().context("cannot spawn non-VPN child")?;
                 Ok(())
             }
             #[cfg(target_os = "windows")]

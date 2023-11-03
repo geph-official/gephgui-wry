@@ -74,7 +74,7 @@ fn wry_loop() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_url(&format!("http://{}/index.html", SERVE_ADDR))?
         .with_rpc_handler(global_rpc_handler)
-        .with_initialization_script(&initjs)
+        .with_initialization_script(initjs)
         .with_web_context(&mut WebContext::new(dirs::config_dir()))
         .build()?;
 
