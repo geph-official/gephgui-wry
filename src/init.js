@@ -1,11 +1,19 @@
 document.addEventListener("click", (e) => {
-  if (e.target.matches("a")) {
-    e.preventDefault();
-    if (e.target.getAttribute("target") === "_blank") {
-      window.rpc.call("open_browser", e.target.getAttribute("href"));
+  // Use closest to find the nearest ancestor <a> element
+  const anchor = e.target.closest("a");
+
+  // If an <a> element is found within the clicked element's hierarchy
+  if (anchor) {
+    e.preventDefault(); // Prevent the default link behavior
+
+    // Check if the <a> has target="_blank"
+    if (anchor.getAttribute("target") === "_blank") {
+      // Call the RPC method with the href of the <a>
+      window.rpc.call("open_browser", anchor.getAttribute("href"));
     }
   }
 });
+
 window.open = (url) => window.rpc.call("open_browser", url);
 
 function convertRemToPixels(rem) {
@@ -69,7 +77,7 @@ window["NATIVE_GATE"] = {
     if (resp.error) {
       throw resp.error.message;
     }
-//    console.log("DAEMON RESULT", resp);
+    //    console.log("DAEMON RESULT", resp);
     return resp.result;
   },
 
