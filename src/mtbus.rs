@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use wry::webview::WebView;
+use wry::WebView;
 
 #[allow(clippy::type_complexity)]
 static BUS: Lazy<(

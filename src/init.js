@@ -9,27 +9,23 @@ document.addEventListener("click", (e) => {
     // Check if the <a> has target="_blank"
     if (anchor.getAttribute("target") === "_blank") {
       // Call the RPC method with the href of the <a>
-      window.rpc.call("open_browser", anchor.getAttribute("href"));
+      jsonrpc_call("open_browser", anchor.getAttribute("href"));
     }
   }
 });
 
-window.open = (url) => window.rpc.call("open_browser", url);
+window.open = (url) => jsonrpc_call("open_browser", url);
 
 function convertRemToPixels(rem) {
   return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
 }
-
-addEventListener("load", (_) => {
-  window["rpc"].call("set_conversion_factor", convertRemToPixels(1) / 15);
-});
 
 let running = false;
 let connected = false;
 
 window["NATIVE_GATE"] = {
   async start_daemon(params) {
-    await window.rpc.call("start_daemon", params);
+    await jsonrpc_call("start_daemon", params);
     while (true) {
       try {
         await this.is_connected();
@@ -42,7 +38,7 @@ window["NATIVE_GATE"] = {
     }
   },
   async stop_daemon() {
-    await window.rpc.call("stop_daemon", []);
+    await jsonrpc_call("stop_daemon", []);
   },
   async is_connected() {
     return await this.daemon_rpc("is_connected", []);
@@ -57,7 +53,7 @@ window["NATIVE_GATE"] = {
   },
   sync_user_info: async (username, password) => {
     let sync_info = JSON.parse(
-      await window.rpc.call("sync", username, password, false)
+      await jsonrpc_call("sync", username, password, false)
     );
     if (sync_info.user.subscription)
       return {
@@ -72,19 +68,19 @@ window["NATIVE_GATE"] = {
   daemon_rpc: async (method, args) => {
     const req = { jsonrpc: "2.0", method: method, params: args, id: 1 };
     const resp = JSON.parse(
-      await window.rpc.call("daemon_rpc", JSON.stringify(req))
+      await jsonrpc_call("daemon_rpc", JSON.stringify(req))
     );
     if (resp.error) {
       throw resp.error.message;
     }
-    //    console.log("DAEMON RESULT", resp);
+
     return resp.result;
   },
 
   binder_rpc: async (method, args) => {
     const req = { jsonrpc: "2.0", method: method, params: args, id: 1 };
     const resp = JSON.parse(
-      await window.rpc.call("binder_rpc", JSON.stringify(req))
+      await jsonrpc_call("binder_rpc", JSON.stringify(req))
     );
     if (resp.error) {
       throw resp.error.message;
@@ -95,17 +91,17 @@ window["NATIVE_GATE"] = {
 
   sync_exits: async (username, password) => {
     let sync_info = JSON.parse(
-      await window.rpc.call("sync", username, password, false)
+      await jsonrpc_call("sync", username, password, false)
     );
     return sync_info.exits;
   },
 
   async purge_caches(username, password) {
-    await window.rpc.call("sync", username, password, true);
+    await jsonrpc_call("sync", username, password, true);
   },
 
   async export_debug_pack() {
-    await window.rpc.call("export_logs");
+    await jsonrpc_call("export_logs");
   },
 
   supports_app_whitelist: false,
@@ -118,7 +114,38 @@ window["NATIVE_GATE"] = {
     return {
       platform_type: "desktop",
       platform_details: "Desktop",
-      version: await window.rpc.call("version"),
+      version: await jsonrpc_call("version"),
     };
   },
 };
+
+let rpc_count = 0;
+
+async function raw_jsonrpc_call(inner) {
+  rpc_count += 1;
+  const promise = new Promise((resolve) => {
+    const callback_name = "callback" + rpc_count;
+    window[callback_name] = (response) => {
+      resolve(response);
+    };
+    const ipc_string = JSON.stringify({
+      callback_code: callback_name,
+      inner,
+    });
+    window.ipc.postMessage(ipc_string);
+  });
+  const res = await promise;
+  if (res.error) {
+    throw res.error.message;
+  }
+  return res.result;
+}
+
+async function jsonrpc_call(method, ...params) {
+  return await raw_jsonrpc_call({
+    jsonrpc: "2.0",
+    method,
+    params,
+    id: 1,
+  });
+}
