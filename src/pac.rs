@@ -3,11 +3,11 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(unix)]
 pub fn configure_proxy() -> anyhow::Result<()> {
-    use crate::SERVE_ADDR;
+    use crate::daemon::PAC_ADDR;
 
     let mut cmd = std::process::Command::new("pac")
         .arg("on")
-        .arg(format!("http://{}/proxy.pac", SERVE_ADDR))
+        .arg(format!("http://{}/proxy.pac", PAC_ADDR))
         .spawn()?;
     cmd.wait()?;
     Ok(())
@@ -22,10 +22,12 @@ pub fn deconfigure_proxy() -> anyhow::Result<()> {
 
 #[cfg(windows)]
 pub fn configure_proxy() -> anyhow::Result<()> {
+    use crate::daemon::HTTP_ADDR;
+
     let mut cmd = std::process::Command::new("winproxy-stripped")
         .arg("-proxy")
         .creation_flags(0x08000000)
-        .arg("http://127.0.0.1:9910")
+        .arg(format!("http://{HTTP_ADDR}"))
         .spawn()?;
     cmd.wait()?;
     Ok(())

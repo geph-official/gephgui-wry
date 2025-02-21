@@ -5,17 +5,18 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# [features]
-# ayatana = ["tao/ayatana"]
+[patch.crates-io]
+geph5-client={path="../geph5/binaries/geph5-client"}
+geph5-broker-protocol={path="../geph5/libraries/geph5-broker-protocol"}
 
 
 [features]
 # tray=["tao/tray", "wry/tray"]
 
 [dependencies]
-tracing = "0.1.35"
-tracing-subscriber = "0.2.25"
-smolscale = "0.3.49"
+tracing = "0.1.40"
+tracing-subscriber = {version="0.3.18", features=["json"]}
+smolscale = "0.4"
 anyhow = "1.0.66"
 mime-sniffer = "0.1.2"
 tap = "1.0.1"
@@ -41,7 +42,7 @@ webbrowser = "0.5.5"
 isahc = "1.7.2"
 serde_yaml = "0.9.14"
 semver = "1.0.14"
-smol-timeout = "0.6.0"
+smol-timeout2 = "0.6.0"
 rand = "0.8.5"
 native-dialog = "0.5"
 open = "4.1.0"
@@ -52,6 +53,11 @@ rfd = {version="0.15.2", default-features=false, features=["xdg-portal", "tokio"
 async-trait = "0.1.86"
 thiserror = "2.0.11"
 infer = "0.19.0"
+geph5-client = "0.2.36"
+base32 = "0.5.1"
+geph5-broker-protocol = "0.2.32"
+futures-util = {version="0.3.31", features=["io"]}
+isocountry = "0.3.2"
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"
@@ -75,10 +81,6 @@ version = "0.48"
 version = "6.2.0"
 features = ["debug-embed"]
 
-[dependencies.tide]
-version = "0.16.0"
-default-features = false
-features = ["h1-server"]
 
 [profile.release]
 panic = "abort"
@@ -90,4 +92,4 @@ codegen-units = 1
 
 [profile.dev]
 panic = "abort"
-
+opt-level = 1
