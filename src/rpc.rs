@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use nanorpc::{nanorpc_derive, JrpcId, JrpcRequest, RpcService};
 use serde::{Deserialize, Serialize};
-use smol::net::TcpStream;
+use serde_json::json;
 use tao::dpi::LogicalSize;
+use webbrowser::open_browser;
 
 use crate::{
     daemon::{daemon_rpc, daemon_running, start_daemon, stop_daemon},
@@ -21,6 +22,11 @@ pub fn ipc_handle(ipc_string: String) -> anyhow::Result<()> {
     tracing::debug!("ipc: {}", ipc_string);
     smolscale::spawn(async move {
         let rpc = IpcService(RpcProtocolImpl).respond_raw(ipc.inner).await;
+        tracing::debug!(
+            "ipc resp: {} ==> {}",
+            ipc_string,
+            serde_json::to_string(&rpc).unwrap()
+        );
         mt_enqueue(move |wv, _| {
             wv.evaluate_script(&format!(
                 "({})({})",
@@ -83,21 +89,31 @@ trait IpcProtocol {
     }
 
     /// Returns a list of price points.
-    async fn price_points(&self) -> Vec<(f64, f64)> {
-        // Replace with real implementation
-        todo!()
+    async fn price_points(&self) -> Result<Vec<(u32, f64)>, String> {
+        let v = self.daemon_rpc("price_points".to_string(), vec![]).await?;
+        Ok(serde_json::from_value(v).map_err(|s| format!("{:?}", s))?)
     }
 
     /// Create an invoice using a number of days, returning an `InvoiceInfo`.
-    async fn create_invoice(&self, _days: u64) -> InvoiceInfo {
-        // Replace with real implementation
-        todo!()
+    async fn create_invoice(&self, secret: String, days: u32) -> InvoiceInfo {
+        InvoiceInfo {
+            id: serde_json::to_string(&(secret, days)).unwrap(),
+            methods: vec!["credit-card".to_string()],
+        }
     }
 
     /// Pay an invoice with a given method.
-    async fn pay_invoice(&self, _id: String, _method: String) {
-        // Replace with real implementation
-        todo!()
+    async fn pay_invoice(&self, id: String, method: String) -> Result<(), String> {
+        let (secret, days): (String, u32) = serde_json::from_str(&id).map_err(|e| e.to_string())?;
+        let url = self
+            .daemon_rpc(
+                "create_payment".to_string(),
+                vec![json!(secret), json!(days), json!(method)],
+            )
+            .await?;
+        let url: String = serde_json::from_value(url).map_err(|e| e.to_string())?;
+        open_browser(webbrowser::Browser::Default, &url).map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     /// Export a debug pack with the provided email.

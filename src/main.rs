@@ -12,15 +12,12 @@ use rpc::ipc_handle;
 // use tao::system_tray::{SystemTray, SystemTrayBuilder};
 use tao::{
     dpi::LogicalSize,
-    event::{Event, StartCause, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
 
-use tap::Tap;
-
-use tracing::Level;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 mod autoupdate;
 mod daemon;
 mod fakefs;

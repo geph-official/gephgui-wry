@@ -2,6 +2,8 @@ use std::{
     io::Write,
     net::{Ipv4Addr, SocketAddr},
     process::Command,
+    sync::LazyLock,
+    time::Duration,
 };
 
 use futures_util::{io::BufReader, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
@@ -9,6 +11,7 @@ use geph5_client::{BridgeMode, BrokerKeys, BrokerSource};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
 use smol::net::TcpStream;
+use smol_timeout2::TimeoutExt;
 use tempfile::NamedTempFile;
 
 use crate::{
@@ -35,14 +38,33 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
     let cfg = running_cfg(args);
 
     let mut tfile = NamedTempFile::with_suffix(".yaml")?;
-    tfile.write_all(serde_yaml::to_string(&serde_json::to_value(cfg)?)?.as_bytes())?;
+    tfile.write_all(serde_yaml::to_string(&serde_json::to_value(&cfg)?)?.as_bytes())?;
     tfile.flush()?;
     let (_, path) = tfile.keep()?;
-    Command::new("geph5-client")
-        .arg("--config")
-        .arg(dbg!(path))
-        .spawn()?;
-    Ok(())
+
+    if cfg.vpn {
+        #[cfg(target_os = "linux")]
+        {
+            let mut cmd = std::process::Command::new("pkexec");
+            cmd.arg("geph5-client").arg("--config").arg(path);
+            cmd.spawn()?;
+            Ok(())
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let mut cmd = runas::Command::new("pkexec");
+            cmd.arg("geph5-client").arg("--config").arg(path);
+            std::thread::spawn(move || cmd.status().unwrap());
+            Ok(())
+        }
+    } else {
+        let mut cmd = Command::new("geph5-client");
+        cmd.arg("--config").arg(path);
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000);
+        cmd.spawn()?;
+        Ok(())
+    }
 }
 
 pub async fn stop_daemon() -> anyhow::Result<()> {
@@ -63,15 +85,21 @@ pub async fn daemon_running() -> bool {
 
 /// Either dispatches to a running daemon, or virtually starts a dryrun daemon and runs with it
 pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    match daemon_rpc_tcp(inner.clone()).await {
-        Ok(resp) => Ok(resp),
-        Err(err) => {
+    match daemon_rpc_tcp(inner.clone())
+        .timeout(Duration::from_secs(3))
+        .await
+    {
+        Some(Ok(resp)) => Ok(resp),
+        Some(Err(err)) => {
             tracing::warn!(
                 method = debug(&inner.method),
                 err = debug(err),
                 "error calling TCP, falling back to direct"
             );
             daemon_rpc_direct(inner).await
+        }
+        None => {
+            anyhow::bail!("timed out")
         }
     }
 }
@@ -89,8 +117,9 @@ async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
 }
 
 async fn daemon_rpc_direct(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    let daemon = geph5_client::Client::start(default_config().inert());
-    daemon.control_client().0.call_raw(inner).await
+    static DAEMON: LazyLock<geph5_client::Client> =
+        LazyLock::new(|| geph5_client::Client::start(default_config().inert()));
+    DAEMON.control_client().0.call_raw(inner).await
 }
 
 fn default_config() -> geph5_client::Config {
