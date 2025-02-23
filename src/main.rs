@@ -30,7 +30,7 @@ use wry::{
     WebContext, WebView, WebViewBuilder,
 };
 
-const WINDOW_WIDTH: i32 = 380;
+const WINDOW_WIDTH: i32 = 400;
 const WINDOW_HEIGHT: i32 = 600;
 
 fn main() -> anyhow::Result<()> {

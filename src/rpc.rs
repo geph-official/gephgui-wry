@@ -173,6 +173,10 @@ trait IpcProtocol {
     async fn echo(&self, i: f64) -> f64 {
         i
     }
+
+    async fn open_browser(&self, url: String) {
+        let _ = open_browser(webbrowser::Browser::Default, &url);
+    }
 }
 
 struct RpcProtocolImpl;
