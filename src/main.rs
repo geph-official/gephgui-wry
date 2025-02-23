@@ -31,7 +31,7 @@ use wry::{
 };
 
 const WINDOW_WIDTH: i32 = 400;
-const WINDOW_HEIGHT: i32 = 600;
+const WINDOW_HEIGHT: i32 = 650;
 
 fn main() -> anyhow::Result<()> {
     config_logging();
@@ -45,7 +45,7 @@ fn main() -> anyhow::Result<()> {
     });
     let dpi = get_xft_dpi();
     let window = WindowBuilder::new()
-        .with_resizable(true)
+        .with_resizable(false)
         .with_inner_size(LogicalSize {
             width: WINDOW_WIDTH * dpi as i32 / 96,
             height: WINDOW_HEIGHT * dpi as i32 / 96,

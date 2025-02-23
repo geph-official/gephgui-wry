@@ -26,10 +26,10 @@ pub const PAC_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12223);
 
 const SOCKS5_ADDR: SocketAddr =
-    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 18964);
+    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9999);
 
 pub const HTTP_ADDR: SocketAddr =
-    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 18965);
+    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8964);
 
 pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
     if args.proxy_autoconf {
@@ -48,14 +48,12 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
             let mut cmd = std::process::Command::new("pkexec");
             cmd.arg("geph5-client").arg("--config").arg(path);
             cmd.spawn()?;
-            Ok(())
         }
         #[cfg(target_os = "windows")]
         {
             let mut cmd = runas::Command::new("pkexec");
             cmd.arg("geph5-client").arg("--config").arg(path);
             std::thread::spawn(move || cmd.status().unwrap());
-            Ok(())
         }
     } else {
         let mut cmd = Command::new("geph5-client");
@@ -63,8 +61,9 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
         #[cfg(windows)]
         cmd.creation_flags(0x08000000);
         cmd.spawn()?;
-        Ok(())
     }
+    smol::Timer::after(Duration::from_secs(1)).await;
+    Ok(())
 }
 
 pub async fn stop_daemon() -> anyhow::Result<()> {
@@ -76,6 +75,7 @@ pub async fn stop_daemon() -> anyhow::Result<()> {
     };
     let _ = deconfigure_proxy();
     daemon_rpc(jrpc).await?;
+    smol::Timer::after(Duration::from_secs(1)).await;
     Ok(())
 }
 
@@ -91,6 +91,9 @@ pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
     {
         Some(Ok(resp)) => Ok(resp),
         Some(Err(err)) => {
+            if inner.method == "stop" {
+                anyhow::bail!("cannot stop now lol");
+            }
             tracing::warn!(
                 method = debug(&inner.method),
                 err = debug(err),
