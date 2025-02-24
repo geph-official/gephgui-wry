@@ -13,5 +13,6 @@ fn main() -> io::Result<()> {
             .set_icon("src/logo-naked.ico")
             .compile()?;
     }
+
     Ok(())
 }

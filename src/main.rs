@@ -36,6 +36,16 @@ const WINDOW_HEIGHT: i32 = 650;
 fn main() -> anyhow::Result<()> {
     config_logging();
 
+    // see whether this is a subprocess that simulates "geph5-client --config ..."
+    let args = std::env::args().collect::<Vec<_>>();
+    if let Some("--config") = args.get(1).map(|s| s.as_str()) {
+        let val: serde_json::Value = serde_yaml::from_slice(&std::fs::read(&args[2])?)?;
+        let cfg: geph5_client::Config = serde_json::from_value(val)?;
+        let client = geph5_client::Client::start(cfg);
+        smol::future::block_on(client.wait_until_dead())?;
+        return Ok(());
+    }
+
     let event_loop: EventLoop<Box<dyn FnOnce(&WebView, &Window) + Send + 'static>> =
         EventLoopBuilder::with_user_event().build();
     let evt_proxy = event_loop.create_proxy();

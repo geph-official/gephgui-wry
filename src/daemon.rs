@@ -2,7 +2,10 @@ use std::{
     io::Write,
     net::{Ipv4Addr, SocketAddr},
     process::Command,
-    sync::LazyLock,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        LazyLock,
+    },
     time::Duration,
 };
 
@@ -13,6 +16,9 @@ use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
 use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
 use tempfile::NamedTempFile;
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 use crate::{
     pac::{configure_proxy, deconfigure_proxy},
@@ -32,6 +38,7 @@ pub const HTTP_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8964);
 
 pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
+    DAEMON_OFF.store(false, Ordering::SeqCst);
     if args.proxy_autoconf {
         configure_proxy()?;
     }
@@ -51,8 +58,10 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
         }
         #[cfg(target_os = "windows")]
         {
-            let mut cmd = runas::Command::new("pkexec");
-            cmd.arg("geph5-client").arg("--config").arg(path);
+            dbg!(&path);
+            let mut cmd = runas::Command::new(std::env::current_exe().unwrap());
+            cmd.arg("--config").arg(path);
+            cmd.show(false);
             std::thread::spawn(move || cmd.status().unwrap());
         }
     } else {
@@ -79,21 +88,31 @@ pub async fn stop_daemon() -> anyhow::Result<()> {
     Ok(())
 }
 
+static DAEMON_OFF: AtomicBool = AtomicBool::new(false);
+
 pub async fn daemon_running() -> bool {
-    TcpStream::connect(CONTROL_ADDR).await.is_ok()
+    if DAEMON_OFF.load(Ordering::SeqCst) {
+        false
+    } else {
+        let res = TcpStream::connect(CONTROL_ADDR).await.is_ok();
+        if !res {
+            DAEMON_OFF.store(true, Ordering::SeqCst);
+        }
+        res
+    }
 }
 
 /// Either dispatches to a running daemon, or virtually starts a dryrun daemon and runs with it
 pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
+    if DAEMON_OFF.load(Ordering::Relaxed) {
+        return daemon_rpc_direct(inner).await;
+    }
     match daemon_rpc_tcp(inner.clone())
         .timeout(Duration::from_secs(3))
         .await
     {
         Some(Ok(resp)) => Ok(resp),
         Some(Err(err)) => {
-            if inner.method == "stop" {
-                anyhow::bail!("cannot stop now lol");
-            }
             tracing::warn!(
                 method = debug(&inner.method),
                 err = debug(err),
@@ -108,7 +127,9 @@ pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
 }
 
 async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    let conn = TcpStream::connect(CONTROL_ADDR).await?;
+    let conn = TcpStream::connect(CONTROL_ADDR)
+        .await
+        .inspect_err(|_| DAEMON_OFF.store(true, Ordering::SeqCst))?;
     let (read, mut write) = conn.split();
     write
         .write_all(format!("{}\n", serde_json::to_string(&inner)?).as_bytes())
@@ -120,6 +141,9 @@ async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
 }
 
 async fn daemon_rpc_direct(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
+    if inner.method == "stop" {
+        anyhow::bail!("cannot stop now lol");
+    }
     static DAEMON: LazyLock<geph5_client::Client> =
         LazyLock::new(|| geph5_client::Client::start(default_config().inert()));
     DAEMON.control_client().0.call_raw(inner).await
