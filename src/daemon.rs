@@ -53,7 +53,9 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
         #[cfg(target_os = "linux")]
         {
             let mut cmd = std::process::Command::new("pkexec");
-            cmd.arg("geph5-client").arg("--config").arg(path);
+            cmd.arg(std::env::current_exe().unwrap())
+                .arg("--config")
+                .arg(path);
             cmd.spawn()?;
         }
         #[cfg(target_os = "windows")]
@@ -65,7 +67,7 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
             std::thread::spawn(move || cmd.status().unwrap());
         }
     } else {
-        let mut cmd = Command::new("geph5-client");
+        let mut cmd = Command::new(std::env::current_exe().unwrap());
         cmd.arg("--config").arg(path);
         #[cfg(windows)]
         cmd.creation_flags(0x08000000);

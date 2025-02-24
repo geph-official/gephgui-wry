@@ -148,6 +148,8 @@ dependencies = [
 [[package]]
 name = "arc-writer"
 version = "0.2.1-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e15dd4b662a8ee95155b5f897c9302805c7df12f6ae63b29310697f47e2bf98b"
 
 [[package]]
 name = "arrayref"
@@ -549,9 +551,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "aws-config"
-version = "1.5.16"
+version = "1.5.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50236e4d60fe8458de90a71c0922c761e41755adf091b1b03de1cef537179915"
+checksum = "490aa7465ee685b2ced076bb87ef654a47724a7844e2c7d3af4e749ce5b875dd"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -617,9 +619,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-lambda"
-version = "1.69.0"
+version = "1.70.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f6d7e2fb51552621943bcdf94fb975ac20edf5f27903a209b850dc84b52a0b6"
+checksum = "d38bca84261ef165675a00bc6af3c3135fa2e6aacd4b0720a9f79e02ff68425f"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -640,9 +642,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-sso"
-version = "1.59.0"
+version = "1.60.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00a35fc7e74f5be45839eb753568535c074a592185dd0a2d406685018d581c43"
+checksum = "60186fab60b24376d3e33b9ff0a43485f99efd470e3b75a9160c849741d63d56"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -662,9 +664,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-ssooidc"
-version = "1.60.0"
+version = "1.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8fa655b4f313124ce272cbc38c5fef13793c832279cec750103e5e6b71a54b8"
+checksum = "7033130ce1ee13e6018905b7b976c915963755aef299c1521897679d6cd4f8ef"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -684,9 +686,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-sts"
-version = "1.60.0"
+version = "1.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc1cfe5e16b90421ea031f4c6348b534ef442e76f6bf4a1b2b592c12cc2c6af9"
+checksum = "c5c1cac7677179d622b4448b0d31bcb359185295dc6fca891920cfb17e2b5156"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -2422,14 +2424,15 @@ dependencies = [
 
 [[package]]
 name = "futures-buffered"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34acda8ae8b63fbe0b2195c998b180cff89a8212fb2622a78b572a9f1c6f7684"
+checksum = "675cc4d9adabdbfe43e69586f418938e5ac343ac6dd41170662761f06d63b8c0"
 dependencies = [
  "cordyceps",
  "diatomic-waker 0.2.3",
  "futures-core",
  "pin-project-lite 0.2.16",
+ "spin",
 ]
 
 [[package]]
@@ -2706,7 +2709,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-broker-protocol"
-version = "0.2.32"
+version = "0.2.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da08db3a26fde3b1be5b9282b08f5ad62004c98579e9e0627ebc3033269c9886"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2729,7 +2734,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-client"
-version = "0.2.36"
+version = "0.2.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "667916c3443f2b3e85c9e8bb9a64846c9c648e117f74ae4e25675dcd27c5d586"
 dependencies = [
  "anyctx",
  "anyhow",
@@ -2817,7 +2824,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-misc-rpc"
-version = "0.2.32"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ddb7c45c3770ca9a83c66b445e1a5bc3f1b8a4eb2f115beb42c3d4909082f62"
 dependencies = [
  "anyhow",
  "async-task",
@@ -4096,6 +4105,8 @@ dependencies = [
 [[package]]
 name = "mizaru2"
 version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14714ff874d5253ce17851aa22c427eefa7fb27b646c32e2ef40b76e1d5efdb8"
 dependencies = [
  "anyhow",
  "blake3",
@@ -4168,6 +4179,8 @@ dependencies = [
 [[package]]
 name = "nanorpc-sillad"
 version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ec964bfdd2969ec140b474e4d7f0cb48d6341b3798c9753526311743ec7a1bb"
 dependencies = [
  "anyhow",
  "async-executor",
@@ -4987,6 +5000,8 @@ dependencies = [
 [[package]]
 name = "picomux"
 version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4212e4342975c4f7a5b323d944347a9951fb1d973dca26007ffadb22e31097c2"
 dependencies = [
  "ahash",
  "anyhow",
@@ -4998,7 +5013,6 @@ dependencies = [
  "async-lock 3.4.0",
  "async-task",
  "async_io_stream",
- "atomic_float",
  "bipe",
  "bytemuck",
  "bytes",
@@ -6281,6 +6295,8 @@ dependencies = [
 [[package]]
 name = "sillad"
 version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd4756b5534c69981e1c6c94858accdb365ccf14c7a76a912871eb1d6339c10f"
 dependencies = [
  "anyhow",
  "async-io 2.4.0",
@@ -6298,6 +6314,8 @@ dependencies = [
 [[package]]
 name = "sillad-conntest"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "903aef2d7729a304f8513bffff708007763e997e07cf4688976f6431ec372243"
 dependencies = [
  "async-io 2.4.0",
  "async-task",
@@ -6314,6 +6332,8 @@ dependencies = [
 [[package]]
 name = "sillad-native-tls"
 version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f01610980c4343852ad63ced247035e656e1faa98bba29d8e361b0d512e4584"
 dependencies = [
  "async-native-tls",
  "async-task",
@@ -6329,6 +6349,8 @@ dependencies = [
 [[package]]
 name = "sillad-sosistab3"
 version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0268195b6d648a9f823d459bbc53728b63226ed3931d26cff2aa981248fd3e0e"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -6336,7 +6358,6 @@ dependencies = [
  "async-io 2.4.0",
  "async-task",
  "async-trait",
- "bipe",
  "blake3",
  "chacha20poly1305",
  "futures-util",
