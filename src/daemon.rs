@@ -230,5 +230,7 @@ fn running_cfg(args: DaemonArgs) -> geph5_client::Config {
         }
     };
 
+    cfg.sess_metadata = args.metadata;
+
     cfg
 }
