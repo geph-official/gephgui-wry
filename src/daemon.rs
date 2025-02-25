@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Context;
 use futures_util::{io::BufReader, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use geph5_client::{BridgeMode, BrokerKeys, BrokerSource};
 use isocountry::CountryCode;
@@ -61,7 +62,7 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
         #[cfg(target_os = "windows")]
         {
             dbg!(&path);
-            let mut cmd = runas::Command::new(std::env::current_exe().unwrap());
+            let mut cmd = runas::Command::newz(std::env::current_exe().unwrap());
             cmd.arg("--config").arg(path);
             cmd.show(false);
             std::thread::spawn(move || cmd.status().unwrap());
@@ -130,7 +131,10 @@ pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
 
 async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
     let conn = TcpStream::connect(CONTROL_ADDR)
+        .timeout(Duration::from_millis(50))
         .await
+        .context("timeout")
+        .and_then(|s| Ok(s?))
         .inspect_err(|_| DAEMON_OFF.store(true, Ordering::SeqCst))?;
     let (read, mut write) = conn.split();
     write
