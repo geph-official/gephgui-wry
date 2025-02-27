@@ -62,7 +62,7 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
         #[cfg(target_os = "windows")]
         {
             dbg!(&path);
-            let mut cmd = runas::Command::newz(std::env::current_exe().unwrap());
+            let mut cmd = runas::Command::new(std::env::current_exe().unwrap());
             cmd.arg("--config").arg(path);
             cmd.show(false);
             std::thread::spawn(move || cmd.status().unwrap());
