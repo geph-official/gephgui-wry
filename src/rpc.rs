@@ -6,7 +6,7 @@ use tao::dpi::LogicalSize;
 use webbrowser::open_browser;
 
 use crate::{
-    daemon::{daemon_rpc, daemon_running, start_daemon, stop_daemon},
+    daemon::{daemon_rpc, daemon_running, restart_daemon, start_daemon, stop_daemon},
     mtbus::mt_enqueue,
     WINDOW_HEIGHT, WINDOW_WIDTH,
 };
@@ -62,6 +62,11 @@ trait IpcProtocol {
     /// Stop the daemon.
     async fn stop_daemon(&self) {
         let _ = stop_daemon().await;
+    }
+
+    /// Restart the daemon with the given arguments.
+    async fn restart_daemon(&self, args: DaemonArgs) -> Result<(), String> {
+        restart_daemon(args).await.map_err(|s| format!("{:?}", s))
     }
 
     /// Returns whether the daemon is running.

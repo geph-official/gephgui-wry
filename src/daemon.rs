@@ -38,11 +38,24 @@ const SOCKS5_ADDR: SocketAddr =
 pub const HTTP_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9910);
 
+pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
+    if args.global_vpn {
+        anyhow::bail!("cannot restart in VPN mode")
+    }
+    stop_daemon_inner().await?;
+    start_daemon_inner(args).await?;
+    Ok(())
+}
+
 pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    DAEMON_OFF.store(false, Ordering::SeqCst);
     if args.proxy_autoconf {
         configure_proxy()?;
     }
+    start_daemon_inner(args).await
+}
+
+async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
+    DAEMON_OFF.store(false, Ordering::SeqCst);
     let cfg = running_cfg(args);
 
     let mut tfile = NamedTempFile::with_suffix(".yaml")?;
@@ -79,15 +92,19 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
 }
 
 pub async fn stop_daemon() -> anyhow::Result<()> {
+    let _ = deconfigure_proxy();
+    stop_daemon_inner().await
+}
+
+async fn stop_daemon_inner() -> anyhow::Result<()> {
     let jrpc = JrpcRequest {
         jsonrpc: "2.0".into(),
         method: "stop".into(),
         params: vec![],
         id: JrpcId::Number(1),
     };
-    let _ = deconfigure_proxy();
     daemon_rpc(jrpc).await?;
-    smol::Timer::after(Duration::from_secs(1)).await;
+    smol::Timer::after(Duration::from_millis(300)).await;
     Ok(())
 }
 
