@@ -55,7 +55,6 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
 }
 
 async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
-    DAEMON_OFF.store(false, Ordering::SeqCst);
     let cfg = running_cfg(args);
 
     let mut tfile = NamedTempFile::with_suffix(".yaml")?;
@@ -92,7 +91,23 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
         cmd.creation_flags(0x08000000);
         cmd.spawn()?;
     }
-    smol::Timer::after(Duration::from_secs(1)).await;
+    wait_daemon_start().await;
+    DAEMON_OFF.store(false, Ordering::SeqCst);
+    Ok(())
+}
+
+async fn wait_daemon_start() {
+    while let Err(err) = check_daemon().await {
+        tracing::warn!(err = debug(err), "daemon check result");
+        smol::Timer::after(Duration::from_millis(50)).await;
+    }
+}
+
+async fn check_daemon() -> anyhow::Result<()> {
+    TcpStream::connect(CONTROL_ADDR)
+        .timeout(Duration::from_millis(50))
+        .await
+        .context("timeout")??;
     Ok(())
 }
 
