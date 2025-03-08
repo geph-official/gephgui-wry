@@ -66,10 +66,15 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
     if cfg.vpn {
         #[cfg(target_os = "linux")]
         {
+            let exec_path = std::env::var("APPIMAGE").unwrap_or_else(|_| {
+                std::env::current_exe()
+                    .expect("could not get current_exe")
+                    .display()
+                    .to_string()
+            });
+
             let mut cmd = std::process::Command::new("pkexec");
-            cmd.arg(std::env::current_exe().unwrap())
-                .arg("--config")
-                .arg(path);
+            cmd.arg(exec_path).arg("--config").arg(path);
             cmd.spawn()?;
         }
         #[cfg(target_os = "windows")]
