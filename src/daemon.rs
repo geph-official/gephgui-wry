@@ -67,9 +67,7 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
         #[cfg(target_os = "linux")]
         {
             let mut cmd = std::process::Command::new("pkexec");
-            cmd.arg(std::env::current_exe().unwrap())
-                .arg("--config")
-                .arg(path);
+            cmd.arg("gephgui-wry").arg("--config").arg(path);
             cmd.spawn()?;
         }
         #[cfg(target_os = "windows")]
