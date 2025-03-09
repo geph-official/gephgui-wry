@@ -91,8 +91,6 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
         cmd.spawn()?;
     }
 
-    wait_daemon_start().await;
-    DAEMON_OFF.store(false, Ordering::SeqCst);
     Ok(())
 }
 
@@ -128,25 +126,12 @@ async fn stop_daemon_inner() -> anyhow::Result<()> {
     Ok(())
 }
 
-static DAEMON_OFF: AtomicBool = AtomicBool::new(false);
-
 pub async fn daemon_running() -> bool {
-    if DAEMON_OFF.load(Ordering::SeqCst) {
-        false
-    } else {
-        let res = TcpStream::connect(CONTROL_ADDR).await.is_ok();
-        if !res {
-            DAEMON_OFF.store(true, Ordering::SeqCst);
-        }
-        res
-    }
+    check_daemon().await.is_ok()
 }
 
 /// Either dispatches to a running daemon, or virtually starts a dryrun daemon and runs with it
 pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    if DAEMON_OFF.load(Ordering::Relaxed) {
-        return daemon_rpc_direct(inner).await;
-    }
     match daemon_rpc_tcp(inner.clone())
         .timeout(Duration::from_secs(3))
         .await
@@ -171,8 +156,7 @@ async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
         .timeout(Duration::from_millis(50))
         .await
         .context("timeout")
-        .and_then(|s| Ok(s?))
-        .inspect_err(|_| DAEMON_OFF.store(true, Ordering::SeqCst))?;
+        .and_then(|s| Ok(s?))?;
     let (read, mut write) = conn.split();
     write
         .write_all(format!("{}\n", serde_json::to_string(&inner)?).as_bytes())
