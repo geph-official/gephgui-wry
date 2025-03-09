@@ -78,7 +78,6 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
         }
         #[cfg(target_os = "windows")]
         {
-            dbg!(&path);
             let mut cmd = runas::Command::new(std::env::current_exe().unwrap());
             cmd.arg("--config").arg(path);
             cmd.show(false);
@@ -91,6 +90,7 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
         cmd.creation_flags(0x08000000);
         cmd.spawn()?;
     }
+
     wait_daemon_start().await;
     DAEMON_OFF.store(false, Ordering::SeqCst);
     Ok(())
