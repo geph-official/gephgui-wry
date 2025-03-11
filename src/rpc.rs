@@ -88,6 +88,7 @@ trait IpcProtocol {
         };
         let resp = daemon_rpc(jrpc).await.map_err(|e| format!("{:?}", e))?;
         if let Some(err) = resp.error {
+            tracing::warn!("error: {:?}", err);
             return Err(err.message);
         }
         Ok(resp.result.unwrap_or_default())
@@ -109,6 +110,7 @@ trait IpcProtocol {
 
     /// Pay an invoice with a given method.
     async fn pay_invoice(&self, id: String, method: String) -> Result<(), String> {
+        tracing::warn!("GONNA PAY INVOICE {id} {method}");
         let (secret, days): (String, u32) = serde_json::from_str(&id).map_err(|e| e.to_string())?;
         let url = self
             .daemon_rpc(
@@ -116,6 +118,7 @@ trait IpcProtocol {
                 vec![json!(secret), json!(days), json!(method)],
             )
             .await?;
+        tracing::warn!("URL URL URL {url}");
         let url: String = serde_json::from_value(url).map_err(|e| e.to_string())?;
         open_browser(webbrowser::Browser::Default, &url).map_err(|e| e.to_string())?;
         Ok(())
