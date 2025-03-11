@@ -22,11 +22,7 @@ pub fn ipc_handle(ipc_string: String) -> anyhow::Result<()> {
     tracing::debug!("ipc: {}", ipc_string);
     smolscale::spawn(async move {
         let rpc = IpcService(RpcProtocolImpl).respond_raw(ipc.inner).await;
-        tracing::debug!(
-            "ipc resp: {} ==> {}",
-            ipc_string,
-            serde_json::to_string(&rpc).unwrap()
-        );
+
         mt_enqueue(move |wv, _| {
             wv.evaluate_script(&format!(
                 "({})({})",
@@ -128,6 +124,19 @@ trait IpcProtocol {
     async fn export_debug_pack(&self, _email: String) {
         // Replace with real implementation
         todo!()
+    }
+
+    /// Obtain the actual contents of the debug pack.
+    async fn get_debug_pack(&self) -> String {
+        let gui_logs = geph5_client::logging::get_json_logs();
+        let daemon_logs = self
+            .daemon_rpc("recent_logs".to_string(), vec![])
+            .await
+            .unwrap_or(serde_json::Value::Null);
+        let daemon_logs: Vec<String> = serde_json::from_value(daemon_logs).unwrap_or_default();
+        let daemon_logs = daemon_logs.join("\n");
+
+        format!("===== GUI =====\n\n{gui_logs}\n\n===== DAEMON =====\n\n {daemon_logs}")
     }
 
     /// Get the icon of an app, returning it as a URL string.

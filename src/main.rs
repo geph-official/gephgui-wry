@@ -21,6 +21,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 mod autoupdate;
 mod daemon;
 mod fakefs;
+
 mod mtbus;
 mod pac;
 mod rpc;
@@ -34,7 +35,7 @@ const WINDOW_WIDTH: i32 = 400;
 const WINDOW_HEIGHT: i32 = 650;
 
 fn main() -> anyhow::Result<()> {
-    config_logging();
+    geph5_client::logging::init_logging()?;
 
     // see whether this is a subprocess that simulates "geph5-client --config ..."
     let args = std::env::args().collect::<Vec<_>>();
@@ -146,22 +147,6 @@ fn main() -> anyhow::Result<()> {
             _ => (),
         }
     });
-}
-
-fn config_logging() {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::fmt::layer()
-                .compact()
-                .with_writer(std::io::stderr),
-        )
-        .with(
-            EnvFilter::builder()
-                .with_default_directive("geph=debug".parse().unwrap())
-                .from_env_lossy(),
-        )
-        .init();
-    tracing::debug!("Logging configured!")
 }
 
 fn get_xft_dpi() -> f64 {
