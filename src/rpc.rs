@@ -121,9 +121,13 @@ trait IpcProtocol {
     }
 
     /// Export a debug pack with the provided email.
-    async fn export_debug_pack(&self, _email: String) {
-        // Replace with real implementation
-        todo!()
+    async fn export_debug_pack(&self, email: String) -> Result<(), String> {
+        self.daemon_rpc(
+            "export_debug_pack".to_string(),
+            vec![json!(email), json!(self.get_debug_pack().await)],
+        )
+        .await?;
+        Ok(())
     }
 
     /// Obtain the actual contents of the debug pack.
