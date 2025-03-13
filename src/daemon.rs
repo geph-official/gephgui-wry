@@ -228,6 +228,7 @@ fn default_config() -> geph5_client::Config {
         credentials: geph5_broker_protocol::Credential::Secret(String::new()),
         sess_metadata: Default::default(),
         task_limit: None,
+        vpn_fd: None,
         pac_listen: Some(PAC_ADDR),
     }
 }
@@ -254,4 +255,26 @@ fn running_cfg(args: DaemonArgs) -> geph5_client::Config {
     cfg.sess_metadata = args.metadata;
 
     cfg
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::daemon::default_config;
+
+    #[test]
+    fn test_dump_default_config() {
+        // Get the default configuration
+        let config = default_config();
+
+        // Convert to JSON and pretty print
+        let json_config =
+            serde_json::to_string_pretty(&config).expect("Failed to serialize config to JSON");
+
+        // Print the JSON representation for inspection
+        println!("Default config JSON representation:");
+        println!("{}", json_config);
+
+        // Assert that the config can be serialized (this should never fail if the previous step succeeded)
+        assert!(serde_json::to_string(&config).is_ok());
+    }
 }
