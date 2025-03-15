@@ -100,7 +100,7 @@ trait IpcProtocol {
     async fn create_invoice(&self, secret: String, days: u32) -> InvoiceInfo {
         InvoiceInfo {
             id: serde_json::to_string(&(secret, days)).unwrap(),
-            methods: vec!["credit-card".to_string()],
+            methods: vec!["credit-card".to_string(), "wechat".to_string()],
         }
     }
 
