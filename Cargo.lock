@@ -2761,8 +2761,6 @@ dependencies = [
 [[package]]
 name = "geph5-broker-protocol"
 version = "0.2.34"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7547dc4dadb4d9396861610afe016487b7222d330fdb3920041f2d7583b3fe77"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2773,7 +2771,7 @@ dependencies = [
  "isocountry",
  "language-tags",
  "melpow",
- "mizaru2",
+ "mizaru2 0.2.12",
  "nanorpc",
  "serde",
  "serde_json",
@@ -2830,7 +2828,7 @@ dependencies = [
  "isocountry",
  "itertools",
  "libc",
- "mizaru2",
+ "mizaru2 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "moka",
  "nanorpc",
  "nanorpc-sillad",
@@ -4176,6 +4174,20 @@ dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "mizaru2"
+version = "0.2.12"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "blind-rsa-signatures",
+ "hex",
+ "rand 0.8.5",
+ "rayon",
+ "serde",
+ "stdcode",
 ]
 
 [[package]]
@@ -8953,3 +8965,7 @@ dependencies = [
  "syn 2.0.100",
  "winnow 0.7.4",
 ]
+
+[[patch.unused]]
+name = "geph5-client"
+version = "0.2.34"
