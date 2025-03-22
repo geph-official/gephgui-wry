@@ -186,8 +186,18 @@ trait IpcProtocol {
 
     /// Obtain native info for debugging.
     async fn get_native_info(&self) -> NativeInfo {
-        // Replace with real implementation
-        todo!()
+        NativeInfo {
+            platform_type: match std::env::consts::OS {
+                "windows" => "Windows".to_string(),
+                "linux" => "Linux".to_string(),
+                "macos" => "macOS".to_string(),
+                other => other.to_string(), // Handle any other OS
+            },
+            platform_details: std::env::consts::OS.to_string(),
+            version: option_env!("VERSION")
+                .unwrap_or("(development version)")
+                .to_string(),
+        }
     }
 
     /// Sample echo method left from your original snippet.

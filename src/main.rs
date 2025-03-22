@@ -61,6 +61,7 @@ fn main() -> anyhow::Result<()> {
             width: WINDOW_WIDTH * dpi as i32 / 96,
             height: WINDOW_HEIGHT * dpi as i32 / 96,
         })
+        .with_title("Geph")
         .build(&event_loop)
         .unwrap();
 
