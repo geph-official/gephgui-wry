@@ -2,6 +2,7 @@
 
 use std::process::Command;
 
+use autoupdate::check_update_loop;
 // use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
 
@@ -46,6 +47,7 @@ fn main() -> anyhow::Result<()> {
         smol::future::block_on(client.wait_until_dead())?;
         return Ok(());
     }
+    smolscale::spawn(check_update_loop()).detach();
 
     let event_loop: EventLoop<Box<dyn FnOnce(&WebView, &Window) + Send + 'static>> =
         EventLoopBuilder::with_user_event().build();

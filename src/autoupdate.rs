@@ -1,187 +1,194 @@
-// use anyhow::Context;
-// use isahc::AsyncReadResponseExt;
-// use rand::Rng;
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
-// use serde::{Deserialize, Serialize};
-// use smol_timeout::TimeoutExt;
-// use std::{collections::HashMap, fs::create_dir_all, io::Read, time::Duration};
-// use tempfile::Builder;
+use anyhow::Context;
+use async_trait::async_trait;
+use geph5_client::ControlClient;
+use nanorpc::{JrpcRequest, JrpcResponse, RpcTransport};
+use rfd::MessageDialog;
+use semver::Version;
+use serde::{Deserialize, Serialize};
+use std::fs;
 
-// pub async fn autoupdate_loop() {
-//     eprintln!("enter autoupdate loop");
-//     loop {
-//         let downloaders = vec![
-//             AutoupdateDownloader::new("https://sos-ch-dk-2.exo.io/utopia/geph-releases"),
-//             AutoupdateDownloader::new("https://f001.backblazeb2.com/file/geph4-dl/geph-releases"),
-//         ];
-//         let picked = &downloaders[rand::thread_rng().gen_range(0..downloaders.len())];
-//         let fallible_part = async {
-//             let update_avail = picked.update_available().await?;
-//             if let Some(update) = update_avail {
-//                 let version = update.version.clone();
+use crate::daemon::daemon_rpc;
 
-//                 #[cfg(target_os = "linux")]
-//                 {
-//                     let (send, recv) = smol::channel::bounded(1);
+pub async fn check_update_loop() {
+    loop {
+        if let Err(err) = check_update_inner().await {
+            tracing::debug!(err = debug(err), "checking update failed!");
+            smol::Timer::after(Duration::from_secs(10)).await;
+        } else {
+            smol::Timer::after(Duration::from_secs(3600)).await;
+        }
+    }
+}
 
-//                     mt_enqueue(move |_wv| {
-//                         let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade using the 'flatpak update' command.\n找到更新版本的迷雾通 ({version})。 使用'flatpak update'命令进行更新。\n找到更新版本的迷霧通 ({version})。 使用'flatpak update'命令進行更新。")).show_alert();
-//                         let _ = {
-//                             res.unwrap_or_default();
-//                             send.try_send(())
-//                         };
-//                     });
-//                     recv.recv().await?
-//                 };
+async fn check_update_inner() -> anyhow::Result<()> {
+    let (manifest, base_url) = ControlClient(DaemonRpcTransport)
+        .get_update_manifest()
+        .await?
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let entry: ManifestEntry = serde_json::from_value(manifest[TRACK].clone())?;
+    let url = format!("{base_url}/{TRACK}/{}/{}", entry.version, entry.filename);
 
-//                 #[cfg(not(target_os = "linux"))]
-//                 {
-//                     let update_path = picked.download_update().await?;
-//                     #[cfg(target_os = "windows")]
-//                     let decision_made = {
-//                         let (send, recv) = smol::channel::bounded(1);
+    // Check if a version upgrade is available by comparing semver
+    let current_version = Version::parse(option_env!("VERSION").unwrap_or("0.0.0"))?;
+    let manifest_version = Version::parse(&entry.version)?;
 
-//                         mt_enqueue(move |_wv| {
-//                             let res = native_dialog::MessageDialog::new().set_title("Update available / 可用更新").set_text(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？")).show_confirm();
-//                             let _ = send.try_send(res.unwrap_or_default());
-//                         });
-//                         recv.recv().await?
-//                     };
-//                     #[cfg(target_os = "macos")]
-//                     let decision_made: bool = {
-//                         use rfd::{MessageButtons, MessageLevel};
-//                         rfd::AsyncMessageDialog::new()
-//                             .set_buttons(MessageButtons::YesNo)
-//                             .set_level(MessageLevel::Info)
-//                             .set_title("Update available / 可用更新")
-//                             .set_description(&format!("A new version ({version}) of Geph is available. Upgrade?\n发现更新版本的迷雾通（{version}）。是否更新？\n發現更新版本的迷霧通（{version}）。是否更新？"))
-//                             .show()
-//                             .await
-//                     };
-//                     if decision_made {
-//                         install_update(update_path)?;
-//                     }
-//                 }
-//             }
-//             anyhow::Ok(())
-//         };
-//         if let Err(err) = fallible_part.await {
-//             tracing::error!("could not check for updates: {:?}", err);
-//         }
-//         smol::Timer::after(Duration::from_secs(3600)).await;
-//     }
-// }
+    if manifest_version <= current_version {
+        // No update needed
+        return Ok(());
+    }
 
-// fn install_update(path: String) -> anyhow::Result<()> {
-//     eprintln!("Initiating update installation");
+    // okay now we download if we need to
+    let hash_path = dirs::cache_dir()
+        .context("no cache dir in the system")?
+        .join("geph5-dl")
+        .join(&entry.sha256);
+    std::fs::create_dir_all(&hash_path)?;
 
-//     match open::that(&path) {
-//         Ok(()) => eprintln!("Successfully opened '{}'", &path),
-//         Err(e) => eprintln!("Error opening '{}': {}", &path, e),
-//     };
+    // Define the download path
+    let download_path = hash_path.join(&entry.filename);
 
-//     Ok(())
-// }
+    // Check if we need to download the file or if we already have it
+    let download_path_str = download_path.to_string_lossy().to_string();
+    let need_download =
+        !download_path.exists() || read_file_sha256(download_path.clone()).await? != entry.sha256;
 
-// #[derive(Serialize, Deserialize, Debug, Clone)]
-// /// Metadata for one particular "track".
-// pub struct UpdateMetadata {
-//     version: String,
-//     blake3: String,
-//     filename: String,
-// }
+    // Download if needed
+    if need_download {
+        // File doesn't exist or hash doesn't match, need to download
+        tracing::info!(
+            "Downloading update from {} to {}",
+            url,
+            download_path.display()
+        );
 
-// /// An autoupdate downloader.
-// pub struct AutoupdateDownloader {
-//     base_url: String,
-// }
+        // Download the file using reqwest
+        let resp = reqwest::get(&url).await?;
+        let bytes = resp.bytes().await?;
 
-// #[cfg(target_os = "linux")]
-// const TRACK: &str = "linux-stable";
+        // Write the file
+        fs::write(&download_path, &bytes)?;
 
-// #[cfg(target_os = "windows")]
-// const TRACK: &str = "windows-stable";
+        // Verify the hash
+        let file_hash = read_file_sha256(download_path.clone()).await?;
+        if file_hash != entry.sha256 {
+            anyhow::bail!("Downloaded file hash mismatch");
+        }
+    }
 
-// #[cfg(target_os = "macos")]
-// const TRACK: &str = "macos-stable";
+    // Now that we have the file (either downloaded or already had it), show the update dialog
+    alert_update(entry.version, download_path_str).await?;
 
-// impl AutoupdateDownloader {
-//     /// Creates a new downloader.
-//     pub fn new(base_url: &str) -> Self {
-//         Self {
-//             base_url: base_url.into(),
-//         }
-//     }
+    Ok(())
+}
 
-//     /// Resolves a filename.
-//     pub fn resolve_url(&self, meta: &UpdateMetadata) -> String {
-//         format!(
-//             "{}/{}/{}/{}",
-//             self.base_url, TRACK, meta.version, meta.filename
-//         )
-//     }
+async fn alert_update(version: String, path: String) -> anyhow::Result<()> {
+    // Use smol::unblock to perform blocking dialog operations
+    smol::unblock(move || {
+        // Check if system language is Chinese
+        let is_chinese = sys_locale::get_locale().unwrap_or_default().contains("zh");
 
-//     /// Checks whether or not an update is available.
-//     pub async fn update_available(&self) -> anyhow::Result<Option<UpdateMetadata>> {
-//         let metadata = self
-//             .metadata()
-//             .await?
-//             .get(TRACK)
-//             .context("no such track")?
-//             .clone();
-//         let remote_ver = semver::Version::parse(&metadata.version)?;
-//         let our_ver = semver::Version::parse(&daemon_version()?)?;
-//         if remote_ver > our_ver || std::env::var("GEPH_FORCE_UPDATE").is_ok() {
-//             Ok(Some(metadata))
-//         } else {
-//             Ok(None)
-//         }
-//     }
+        // Prepare dialog text based on language
+        let title = if is_chinese {
+            "迷雾通更新可用"
+        } else {
+            "Geph Update Available"
+        };
 
-//     /// Helper method that returns the update metadata
-//     async fn metadata(&self) -> anyhow::Result<HashMap<String, UpdateMetadata>> {
-//         let get_url = format!("{}/metadata.yaml", self.base_url);
-//         let response = isahc::get_async(&get_url)
-//             .timeout(Duration::from_secs(10))
-//             .await
-//             .context("timeout")??
-//             .bytes()
-//             .await?;
-//         Ok(serde_yaml::from_slice(&response)?)
-//     }
+        let description = if is_chinese {
+            format!("迷雾通新版本可用 ({version})。保存安装程序？")
+        } else {
+            format!("A new version of Geph is available ({version}). Save installer?")
+        };
 
-//     async fn download_update(&self) -> anyhow::Result<String> {
-//         eprintln!("about to update...");
-//         let metadata = self
-//             .metadata()
-//             .await?
-//             .get(TRACK)
-//             .context("error getting track")?
-//             .clone();
-//         let url = self.resolve_url(&metadata);
-//         eprintln!("downloading update from {url}...");
-//         let mut res = isahc::get_async(&url).await?;
+        let save_title = if is_chinese {
+            "保存迷雾通安装程序"
+        } else {
+            "Save Geph Installer"
+        };
 
-//         let mut tmp_dir = Builder::new().tempdir()?.into_path();
-//         let filename = url
-//             .split('/')
-//             .last()
-//             .context("Unable to get update filename")?;
-//         tmp_dir.push(filename);
-//         let filepath_str = tmp_dir
-//             .as_os_str()
-//             .to_str()
-//             .context("Error converting tmp directory to string")?;
+        // Show a dialog to inform the user about the update
+        let result = MessageDialog::new()
+            .set_title(title)
+            .set_description(description)
+            .set_buttons(rfd::MessageButtons::YesNo)
+            .show();
 
-//         create_dir_all(tmp_dir.parent().context("Error getting tmp file dir")?)?;
-//         res.copy_to(smol::fs::File::create(filepath_str).await?)
-//             .await?;
+        if result == rfd::MessageDialogResult::Yes {
+            // User clicked OK, show a file save dialog
+            if let Some(save_path) = rfd::FileDialog::new()
+                .set_title(save_title)
+                .set_file_name(
+                    Path::new(&path)
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy(),
+                )
+                .save_file()
+            {
+                // Copy the installer to the selected location
+                fs::copy(path, &save_path)?;
 
-//         eprintln!(
-//             "Update v{} was successfully downloaded to {}",
-//             metadata.version, &filepath_str
-//         );
+                // Optional: Open the installer location in file explorer
+                #[cfg(target_os = "windows")]
+                {
+                    let parent = save_path.parent().unwrap_or_else(|| Path::new(""));
+                    std::process::Command::new("explorer").arg(parent).spawn()?;
+                }
 
-//         Ok(filepath_str.to_string())
-//     }
-// }
+                #[cfg(target_os = "macos")]
+                {
+                    let parent = save_path.parent().unwrap_or_else(|| Path::new(""));
+                    std::process::Command::new("open").arg(parent).spawn()?;
+                }
+
+                #[cfg(target_os = "linux")]
+                {
+                    let parent = save_path.parent().unwrap_or_else(|| Path::new(""));
+                    std::process::Command::new("xdg-open").arg(parent).spawn()?;
+                }
+            }
+        }
+
+        Ok(())
+    })
+    .await
+}
+
+async fn read_file_sha256(fname: PathBuf) -> anyhow::Result<String> {
+    smol::unblock(move || {
+        let bts = std::fs::read(&fname)?;
+        anyhow::Ok(hex::encode(hmac_sha256::Hash::hash(&bts)))
+    })
+    .await
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ManifestEntry {
+    version: String,
+    sha256: String,
+    filename: String,
+}
+
+#[cfg(target_os = "linux")]
+const TRACK: &str = "linux-stable";
+
+#[cfg(target_os = "windows")]
+const TRACK: &str = "windows-stable";
+
+#[cfg(target_os = "macos")]
+const TRACK: &str = "macos-stable";
+
+struct DaemonRpcTransport;
+
+#[async_trait]
+impl RpcTransport for DaemonRpcTransport {
+    type Error = anyhow::Error;
+    async fn call_raw(&self, req: JrpcRequest) -> Result<JrpcResponse, Self::Error> {
+        daemon_rpc(req).await
+    }
+}
