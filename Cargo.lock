@@ -2759,7 +2759,7 @@ dependencies = [
 
 [[package]]
 name = "geph5-broker-protocol"
-version = "0.2.43"
+version = "0.2.34"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2782,7 +2782,7 @@ dependencies = [
 
 [[package]]
 name = "geph5-client"
-version = "0.2.43"
+version = "0.2.38"
 dependencies = [
  "anyctx",
  "anyhow",
@@ -2791,12 +2791,14 @@ dependencies = [
  "async-compat",
  "async-dup",
  "async-event",
+ "async-io-bufpool",
  "async-native-tls",
  "async-trait",
  "atomic_float",
  "aws-config",
  "aws-sdk-lambda",
  "aws-smithy-runtime",
+ "base32 0.5.1",
  "blake3",
  "blind-rsa-signatures",
  "bytes",
@@ -2825,7 +2827,6 @@ dependencies = [
  "isocountry",
  "itertools",
  "libc",
- "minisign-verify",
  "mizaru2",
  "moka",
  "nanorpc",
@@ -2871,7 +2872,7 @@ dependencies = [
 
 [[package]]
 name = "geph5-misc-rpc"
-version = "0.2.43"
+version = "0.2.34"
 dependencies = [
  "anyhow",
  "async-task",
