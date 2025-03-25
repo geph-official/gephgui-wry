@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [patch.crates-io]
-geph5-client={path="../geph5/binaries/geph5-client"}
-geph5-broker-protocol={path="../geph5/libraries/geph5-broker-protocol"}
+#geph5-client={path="../geph5/binaries/geph5-client"}
+#geph5-broker-protocol={path="../geph5/libraries/geph5-broker-protocol"}
 
 
 [features]

@@ -148,6 +148,8 @@ dependencies = [
 [[package]]
 name = "arc-writer"
 version = "0.2.1-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e15dd4b662a8ee95155b5f897c9302805c7df12f6ae63b29310697f47e2bf98b"
 
 [[package]]
 name = "arrayref"
@@ -340,13 +342,15 @@ dependencies = [
 
 [[package]]
 name = "async-io-bufpool"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fb99affd84dd315d0f240048fb960db6d09bc8ccbe4721f9d771b89836a6f5b"
+checksum = "dca4c0a0ae6e9addc65cd2c39afe44e60c2029f75b742fc75efa82d05882de0d"
 dependencies = [
  "bytes",
  "crossbeam-queue",
  "futures-util",
+ "pin-project-lite 0.2.16",
+ "pretty-readme",
 ]
 
 [[package]]
@@ -2759,7 +2763,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-broker-protocol"
-version = "0.2.34"
+version = "0.2.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcbeb9409cb15a33284a806a35e83d16ac2317cf54472cb5d350379047002dce"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2782,7 +2788,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-client"
-version = "0.2.38"
+version = "0.2.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5214daa7b4ee39fd9d3541e2cf924c9c00945fa9888d12955fcd63440b93a9e"
 dependencies = [
  "anyctx",
  "anyhow",
@@ -2791,14 +2799,12 @@ dependencies = [
  "async-compat",
  "async-dup",
  "async-event",
- "async-io-bufpool",
  "async-native-tls",
  "async-trait",
  "atomic_float",
  "aws-config",
  "aws-sdk-lambda",
  "aws-smithy-runtime",
- "base32 0.5.1",
  "blake3",
  "blind-rsa-signatures",
  "bytes",
@@ -2827,6 +2833,7 @@ dependencies = [
  "isocountry",
  "itertools",
  "libc",
+ "minisign-verify",
  "mizaru2",
  "moka",
  "nanorpc",
@@ -2872,7 +2879,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-misc-rpc"
-version = "0.2.34"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ddb7c45c3770ca9a83c66b445e1a5bc3f1b8a4eb2f115beb42c3d4909082f62"
 dependencies = [
  "anyhow",
  "async-task",
@@ -4187,6 +4196,8 @@ dependencies = [
 [[package]]
 name = "mizaru2"
 version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14714ff874d5253ce17851aa22c427eefa7fb27b646c32e2ef40b76e1d5efdb8"
 dependencies = [
  "anyhow",
  "blake3",
@@ -4259,6 +4270,8 @@ dependencies = [
 [[package]]
 name = "nanorpc-sillad"
 version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ec964bfdd2969ec140b474e4d7f0cb48d6341b3798c9753526311743ec7a1bb"
 dependencies = [
  "anyhow",
  "async-executor",
@@ -5118,7 +5131,9 @@ dependencies = [
 
 [[package]]
 name = "picomux"
-version = "0.1.11"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d55c2629676ca4d778b468a70080bb8c22e9e6475509789b21c29f3de17802e"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5390,6 +5405,18 @@ name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+
+[[package]]
+name = "pretty-readme"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "241f6a37335987e17e6030deb400ef373cc028bbdc5722c5ee8b807c33d7568f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.100",
+]
 
 [[package]]
 name = "proc-macro-crate"
@@ -6422,6 +6449,8 @@ dependencies = [
 [[package]]
 name = "sillad"
 version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd4756b5534c69981e1c6c94858accdb365ccf14c7a76a912871eb1d6339c10f"
 dependencies = [
  "anyhow",
  "async-io 2.4.0",
@@ -6439,6 +6468,8 @@ dependencies = [
 [[package]]
 name = "sillad-conntest"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "903aef2d7729a304f8513bffff708007763e997e07cf4688976f6431ec372243"
 dependencies = [
  "async-io 2.4.0",
  "async-task",
@@ -6455,6 +6486,8 @@ dependencies = [
 [[package]]
 name = "sillad-native-tls"
 version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f01610980c4343852ad63ced247035e656e1faa98bba29d8e361b0d512e4584"
 dependencies = [
  "async-native-tls",
  "async-task",
@@ -6470,6 +6503,8 @@ dependencies = [
 [[package]]
 name = "sillad-sosistab3"
 version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0268195b6d648a9f823d459bbc53728b63226ed3931d26cff2aa981248fd3e0e"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -6477,7 +6512,6 @@ dependencies = [
  "async-io 2.4.0",
  "async-task",
  "async-trait",
- "bipe",
  "blake3",
  "chacha20poly1305",
  "futures-util",
