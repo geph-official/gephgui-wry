@@ -2805,9 +2805,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-broker-protocol"
-version = "0.2.46"
+version = "0.2.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d8f830425647a802d3999c270a9b70d61f005e9f354691eaa2fcb6770de3a8b"
+checksum = "0e8b4b5cc94537902b053a88d6acae110fe0c7b87093085ad3cdf7c24653a881"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2830,9 +2830,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-client"
-version = "0.2.46"
+version = "0.2.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8aa9b0df3d03b101077b9174aeb2c74fd73573aac85232a49aad949e657599f2"
+checksum = "20e32f5cdc1add7e76d56bf76ee2fe6c3f8d4767f25ed59582f40937c60ef3fb"
 dependencies = [
  "anyctx",
  "anyhow",
