@@ -34,7 +34,11 @@ async fn check_update_inner() -> anyhow::Result<()> {
     let url = format!("{base_url}/{TRACK}/{}/{}", entry.version, entry.filename);
 
     // Check if a version upgrade is available by comparing semver
-    let current_version = Version::parse(option_env!("VERSION").unwrap_or("0.0.0"))?;
+    let current_version = Version::parse(
+        option_env!("VERSION")
+            .unwrap_or("0.0.0")
+            .trim_start_matches('v'),
+    )?;
     let manifest_version = Version::parse(&entry.version)?;
 
     if manifest_version <= current_version {
