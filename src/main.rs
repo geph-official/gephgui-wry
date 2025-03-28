@@ -18,7 +18,6 @@ use tao::{
     window::{Window, WindowBuilder},
 };
 
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 mod autoupdate;
 mod daemon;
 mod fakefs;
@@ -49,6 +48,33 @@ fn main() -> anyhow::Result<()> {
     }
     smolscale::spawn(check_update_loop()).detach();
 
+    // Start a simple HTTP server in a separate thread
+    std::thread::spawn(|| {
+        let server = tiny_http::Server::http("127.0.0.1:5678").unwrap();
+        for request in server.incoming_requests() {
+            let url = request.url().trim_start_matches('/');
+            let url = if url.is_empty() { "index.html" } else { url };
+            
+            if let Some(resp) = FakeFs::get(url) {
+                let mime_type = mime_guess::from_path(url)
+                    .first_or_octet_stream()
+                    .to_string();
+                
+                let response = tiny_http::Response::from_data(resp.data)
+                    .with_header(tiny_http::Header::from_bytes(
+                        &b"Content-Type"[..],
+                        mime_type.as_bytes(),
+                    ).unwrap());
+                
+                request.respond(response).ok();
+            } else {
+                let response = tiny_http::Response::from_string("Not found")
+                    .with_status_code(404);
+                request.respond(response).ok();
+            }
+        }
+    });
+
     let event_loop: EventLoop<Box<dyn FnOnce(&WebView, &Window) + Send + 'static>> =
         EventLoopBuilder::with_user_event().build();
     let evt_proxy = event_loop.create_proxy();
@@ -74,26 +100,8 @@ fn main() -> anyhow::Result<()> {
 
     let mut wctx = WebContext::new(dirs::config_dir());
     let builder = WebViewBuilder::with_web_context(&mut wctx)
-        .with_url("geph://index.html")
+        .with_url("http://127.0.0.1:5678")
         .with_initialization_script(&initjs)
-        .with_custom_protocol("geph".to_string(), |_, req| {
-            let url = req.uri().path().trim_start_matches('/');
-
-            let url = if url.is_empty() { "index.html" } else { url };
-            let resp = FakeFs::get(url);
-            if let Some(resp) = resp {
-                let mime_type = mime_guess::from_path(url)
-                    .first_or_octet_stream()
-                    .to_string();
-
-                Response::builder()
-                    .header(CONTENT_TYPE, mime_type)
-                    .body(resp.data)
-                    .unwrap()
-            } else {
-                Response::new(Default::default())
-            }
-        })
         .with_ipc_handler(|req| {
             let req = req.into_body();
             ipc_handle(req).unwrap();
