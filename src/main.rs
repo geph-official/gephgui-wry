@@ -33,7 +33,7 @@ use wry::{
 };
 
 const WINDOW_WIDTH: i32 = 400;
-const WINDOW_HEIGHT: i32 = 650;
+const WINDOW_HEIGHT: i32 = 720;
 
 fn main() -> anyhow::Result<()> {
     geph5_client::logging::init_logging()?;
