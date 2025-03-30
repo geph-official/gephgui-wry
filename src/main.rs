@@ -15,7 +15,7 @@ use tao::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
-    window::{Window, WindowBuilder},
+    window::{Icon, Window, WindowBuilder},
 };
 
 mod autoupdate;
@@ -54,22 +54,20 @@ fn main() -> anyhow::Result<()> {
         for request in server.incoming_requests() {
             let url = request.url().trim_start_matches('/');
             let url = if url.is_empty() { "index.html" } else { url };
-            
+
             if let Some(resp) = FakeFs::get(url) {
                 let mime_type = mime_guess::from_path(url)
                     .first_or_octet_stream()
                     .to_string();
-                
-                let response = tiny_http::Response::from_data(resp.data)
-                    .with_header(tiny_http::Header::from_bytes(
-                        &b"Content-Type"[..],
-                        mime_type.as_bytes(),
-                    ).unwrap());
-                
+
+                let response = tiny_http::Response::from_data(resp.data).with_header(
+                    tiny_http::Header::from_bytes(&b"Content-Type"[..], mime_type.as_bytes())
+                        .unwrap(),
+                );
+
                 request.respond(response).ok();
             } else {
-                let response = tiny_http::Response::from_string("Not found")
-                    .with_status_code(404);
+                let response = tiny_http::Response::from_string("Not found").with_status_code(404);
                 request.respond(response).ok();
             }
         }
@@ -82,14 +80,24 @@ fn main() -> anyhow::Result<()> {
         let evt = mt_next();
         evt_proxy.send_event(Box::new(evt)).ok().unwrap();
     });
-    let dpi = get_xft_dpi();
+
     let window = WindowBuilder::new()
         .with_resizable(true)
         .with_inner_size(LogicalSize {
-            width: WINDOW_WIDTH * dpi as i32 / 96,
-            height: WINDOW_HEIGHT * dpi as i32 / 96,
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
         })
         .with_title("Geph")
+        .with_window_icon({
+            let logo_png = png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref());
+            let mut logo_png = logo_png.read_info()?;
+            let mut icon_buf = vec![0; logo_png.output_buffer_size()];
+            logo_png.next_frame(&mut icon_buf)?;
+
+            let logo_icon =
+                Icon::from_rgba(icon_buf, logo_png.info().width, logo_png.info().height)?;
+            Some(logo_icon)
+        })
         .build(&event_loop)
         .unwrap();
 
@@ -158,31 +166,4 @@ fn main() -> anyhow::Result<()> {
             _ => (),
         }
     });
-}
-
-fn get_xft_dpi() -> f64 {
-    // Try running "xrdb -query"
-    let output = match Command::new("xrdb").arg("-query").output() {
-        Ok(o) => o,
-        Err(_) => return 96.0, // fallback
-    };
-
-    // Convert stdout bytes to String
-    let stdout = match String::from_utf8(output.stdout) {
-        Ok(s) => s,
-        Err(_) => return 96.0, // fallback
-    };
-
-    // Look for a line that starts with "Xft.dpi:"
-    for line in stdout.lines() {
-        if let Some(value) = line.strip_prefix("Xft.dpi:") {
-            // Attempt to parse the value after the colon
-            if let Ok(dpi) = value.trim().parse::<f64>() {
-                return dpi;
-            }
-        }
-    }
-
-    // If nothing matched, fall back
-    96.0
 }
