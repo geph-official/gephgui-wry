@@ -89,9 +89,9 @@ features = ["debug-embed"]
 
 [profile.release]
 panic = "abort"
-opt-level='z'
-lto="thin"
-strip=true
+opt-level=3
+lto=true
+#strip=true
 
 
 [profile.dev]
