@@ -35,7 +35,7 @@ pub const PAC_ADDR: SocketAddr =
 const SOCKS5_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9909);
 
-pub const HTTP_ADDR: SocketAddr =
+const HTTP_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9910);
 
 pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
@@ -51,7 +51,13 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
     if args.proxy_autoconf {
         configure_proxy()?;
     }
-    start_daemon_inner(args).await
+    start_daemon_inner(args).await?;
+    wait_daemon_start()
+        .timeout(Duration::from_secs(30))
+        .await
+        .context("daemon did not start in 30")?;
+    smol::Timer::after(Duration::from_millis(500)).await;
+    Ok(())
 }
 
 async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
@@ -122,7 +128,7 @@ async fn stop_daemon_inner() -> anyhow::Result<()> {
         id: JrpcId::Number(1),
     };
     daemon_rpc(jrpc).await?;
-    smol::Timer::after(Duration::from_millis(300)).await;
+    smol::Timer::after(Duration::from_millis(1000)).await;
     Ok(())
 }
 
@@ -193,26 +199,6 @@ fn default_config() -> geph5_client::Config {
             BrokerSource::Fronted {
                 front: "https://vuejs.org/".into(),
                 host: "svitania-naidallszei-2.netlify.app".into(),
-            },
-            BrokerSource::AwsLambda {
-                function_name: "geph-lambda-bouncer".into(),
-                region: "us-east-1".into(),
-                access_key_id: String::from_utf8_lossy(
-                    &base32::decode(
-                        base32::Alphabet::Crockford,
-                        "855MJGAMB58MCPJBB97K4P2C6NC36DT8",
-                    )
-                    .unwrap(),
-                )
-                .to_string(),
-                secret_access_key: String::from_utf8_lossy(
-                    &base32::decode(
-                        base32::Alphabet::Crockford,
-                        "8SQ7ECABES132WT4B9GQEN356XQ6GRT36NS64GBK9HP42EAGD8W6JRA39DTKAP2J",
-                    )
-                    .unwrap(),
-                )
-                .to_string(),
             },
         ])),
         broker_keys: Some(BrokerKeys {
