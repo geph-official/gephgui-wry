@@ -19,7 +19,7 @@ struct IpcObject {
 
 pub fn ipc_handle(ipc_string: String) -> anyhow::Result<()> {
     let ipc: IpcObject = serde_json::from_str(&ipc_string)?;
-    tracing::debug!("ipc: {}", ipc_string);
+    tracing::trace!("ipc: {}", ipc_string);
     smolscale::spawn(async move {
         let rpc = IpcService(RpcProtocolImpl).respond_raw(ipc.inner).await;
 

@@ -2,10 +2,7 @@ use std::{
     io::Write,
     net::{Ipv4Addr, SocketAddr},
     process::Command,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        LazyLock,
-    },
+    sync::LazyLock,
     time::Duration,
 };
 
@@ -191,16 +188,26 @@ fn default_config() -> geph5_client::Config {
         exit_constraint: geph5_client::ExitConstraint::Auto,
         bridge_mode: BridgeMode::Auto,
         cache: None,
-        broker: Some(BrokerSource::Race(vec![
-            BrokerSource::Fronted {
-                front: "https://www.cdn77.com/".into(),
-                host: "1826209743.rsc.cdn77.org".into(),
-            },
-            BrokerSource::Fronted {
-                front: "https://vuejs.org/".into(),
-                host: "svitania-naidallszei-2.netlify.app".into(),
-            },
-        ])),
+        broker: Some(BrokerSource::PriorityRace(
+            vec![
+                (
+                    0,
+                    BrokerSource::Fronted {
+                        front: "https://www.cdn77.com/".into(),
+                        host: "1826209743.rsc.cdn77.org".into(),
+                    },
+                ),
+                (
+                    500,
+                    BrokerSource::Fronted {
+                        front: "https://www.vuejs.org/".into(),
+                        host: "svitania-naidallszei-2.netlify.app".into(),
+                    },
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        )),
         broker_keys: Some(BrokerKeys {
             master: "88c1d2d4197bed815b01a22cadfc6c35aa246dddb553682037a118aebfaa3954".into(),
             mizaru_free: "0558216cbab7a9c46f298f4c26e171add9af87d0694988b8a8fe52ee932aa754".into(),

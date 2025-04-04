@@ -1,6 +1,5 @@
 #![windows_subsystem = "windows"]
 
-use std::process::Command;
 
 use autoupdate::check_update_loop;
 // use autoupdate::autoupdate_loop;
@@ -27,7 +26,6 @@ mod pac;
 mod rpc;
 
 use wry::{
-    http::{header::CONTENT_TYPE, Response},
     WebContext, WebView, WebViewBuilder,
 };
 
