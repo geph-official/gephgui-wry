@@ -1,6 +1,6 @@
 use std::{
     io::Write,
-    net::{Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     process::Command,
     sync::LazyLock,
     time::Duration,
@@ -13,6 +13,7 @@ use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
 use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
+use tap::Tap;
 use tempfile::NamedTempFile;
 
 #[cfg(windows)]
@@ -198,7 +199,7 @@ fn default_config() -> geph5_client::Config {
                     },
                 ),
                 (
-                    500,
+                    1000,
                     BrokerSource::Fronted {
                         front: "https://www.vuejs.org/".into(),
                         host: "svitania-naidallszei-2.netlify.app".into(),
@@ -234,6 +235,12 @@ fn running_cfg(args: DaemonArgs) -> geph5_client::Config {
     cfg.vpn = args.global_vpn;
     cfg.passthrough_china = args.prc_whitelist;
     cfg.credentials = geph5_broker_protocol::Credential::Secret(args.secret);
+    if args.listen_all {
+        cfg.socks5_listen =
+            Some(SOCKS5_ADDR.tap_mut(|sa| sa.set_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))));
+        cfg.http_proxy_listen =
+            Some(HTTP_ADDR.tap_mut(|sa| sa.set_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))));
+    }
 
     cfg.exit_constraint = match args.exit {
         crate::rpc::ExitConstraint::Auto => geph5_client::ExitConstraint::Auto,

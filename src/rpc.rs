@@ -97,11 +97,16 @@ trait IpcProtocol {
     }
 
     /// Create an invoice using a number of days, returning an `InvoiceInfo`.
-    async fn create_invoice(&self, secret: String, days: u32) -> InvoiceInfo {
-        InvoiceInfo {
+    async fn create_invoice(&self, secret: String, days: u32) -> Result<InvoiceInfo, String> {
+        let methods = self
+            .daemon_rpc("payment_methods".to_string(), vec![])
+            .await?;
+        let methods: Vec<String> = serde_json::from_value(methods)
+            .map_err(|_| "cannot deserialize methods".to_string())?;
+        Ok(InvoiceInfo {
             id: serde_json::to_string(&(secret, days)).unwrap(),
-            methods: vec!["credit-card".to_string(), "wechat".to_string()],
-        }
+            methods,
+        })
     }
 
     /// Pay an invoice with a given method.
