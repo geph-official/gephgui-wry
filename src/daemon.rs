@@ -33,7 +33,7 @@ pub const PAC_ADDR: SocketAddr =
 const SOCKS5_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9909);
 
-const HTTP_ADDR: SocketAddr =
+pub const HTTP_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9910);
 
 pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
