@@ -62,7 +62,9 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
     let cfg = running_cfg(args);
 
     let mut tfile = NamedTempFile::with_suffix(".yaml")?;
-    tfile.write_all(serde_yaml::to_string(&serde_json::to_value(&cfg)?)?.as_bytes())?;
+    let val = serde_json::to_value(&cfg)?;
+
+    tfile.write_all(serde_yaml::to_string(&val)?.as_bytes())?;
     tfile.flush()?;
     let (_, path) = tfile.keep()?;
 
