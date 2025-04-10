@@ -1,6 +1,5 @@
 #![windows_subsystem = "windows"]
 
-
 use autoupdate::check_update_loop;
 // use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
@@ -25,9 +24,7 @@ mod mtbus;
 mod pac;
 mod rpc;
 
-use wry::{
-    WebContext, WebView, WebViewBuilder,
-};
+use wry::{WebContext, WebView, WebViewBuilder};
 
 const WINDOW_WIDTH: i32 = 400;
 const WINDOW_HEIGHT: i32 = 720;
@@ -152,7 +149,7 @@ fn main() -> anyhow::Result<()> {
                 // You only need to call this if you've determined that you need to redraw, in
                 // applications which do not always need to. Applications that redraw continuously
                 // can just render here instead.
-                window.request_redraw();
+                // window.request_redraw();
             }
             Event::RedrawRequested(_) => {
                 // Redraw the application.
