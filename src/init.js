@@ -1,18 +1,22 @@
-document.addEventListener("click", (e) => {
-  // Use closest to find the nearest ancestor <a> element
-  const anchor = e.target.closest("a");
+document.addEventListener(
+  "click",
+  (e) => {
+    // Use closest to find the nearest ancestor <a> element
+    const anchor = e.target.closest("a");
 
-  // If an <a> element is found within the clicked element's hierarchy
-  if (anchor) {
-    e.preventDefault(); // Prevent the default link behavior
+    // If an <a> element is found within the clicked element's hierarchy
+    if (anchor) {
+      e.preventDefault(); // Prevent the default link behavior
 
-    // Check if the <a> has target="_blank"
-    if (anchor.getAttribute("target") === "_blank") {
-      // Call the RPC method with the href of the <a>
-      jsonrpc_call("open_browser", anchor.getAttribute("href"));
+      // Check if the <a> has target="_blank"
+      if (anchor.getAttribute("target") === "_blank") {
+        // Call the RPC method with the href of the <a>
+        jsonrpc_call("open_browser", anchor.getAttribute("href"));
+      }
     }
-  }
-});
+  },
+  true
+);
 
 window.open = (url) => jsonrpc_call("open_browser", url);
 
