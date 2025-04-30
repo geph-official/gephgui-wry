@@ -41,6 +41,7 @@ fn main() -> anyhow::Result<()> {
         smol::future::block_on(client.wait_until_dead())?;
         return Ok(());
     }
+    #[cfg(not(target_os = "linux"))]
     smolscale::spawn(check_update_loop()).detach();
 
     // Start a simple HTTP server in a separate thread

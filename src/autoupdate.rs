@@ -1,5 +1,6 @@
 use std::{
     path::{Path, PathBuf},
+    process::exit,
     time::Duration,
 };
 
@@ -12,7 +13,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
-use crate::daemon::daemon_rpc;
+use crate::daemon::{daemon_rpc, stop_daemon};
 
 pub async fn check_update_loop() {
     loop {
@@ -85,14 +86,14 @@ async fn check_update_inner() -> anyhow::Result<()> {
     }
 
     // Now that we have the file (either downloaded or already had it), show the update dialog
-    alert_update(entry.version, download_path_str).await?;
+    run_update(entry.version, download_path_str).await?;
 
     Ok(())
 }
 
-async fn alert_update(version: String, path: String) -> anyhow::Result<()> {
+async fn run_update(version: String, path: String) -> anyhow::Result<()> {
     // Use smol::unblock to perform blocking dialog operations
-    smol::unblock(move || {
+    let should_exit = smol::unblock(move || {
         // Check if system language is Chinese
         let is_chinese = sys_locale::get_locale().unwrap_or_default().contains("zh");
 
@@ -104,15 +105,9 @@ async fn alert_update(version: String, path: String) -> anyhow::Result<()> {
         };
 
         let description = if is_chinese {
-            format!("迷雾通新版本可用 ({version})。保存安装程序？")
+            format!("迷雾通新版本可用 ({version})。安装此更新将停止当前迷雾通程序并运行安装程序。现在安装？")
         } else {
-            format!("A new version of Geph is available ({version}). Save installer?")
-        };
-
-        let save_title = if is_chinese {
-            "保存迷雾通安装程序"
-        } else {
-            "Save Geph Installer"
+            format!("A new version of Geph is available ({version}). Installing this update will stop the current Geph program and run the installer. Install now?")
         };
 
         // Show a dialog to inform the user about the update
@@ -123,44 +118,45 @@ async fn alert_update(version: String, path: String) -> anyhow::Result<()> {
             .show();
 
         if result == rfd::MessageDialogResult::Yes {
-            // User clicked OK, show a file save dialog
-            if let Some(save_path) = rfd::FileDialog::new()
-                .set_title(save_title)
-                .set_file_name(
-                    Path::new(&path)
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy(),
-                )
-                .save_file()
+            // User clicked Yes, run the installer
+
+            // Run the installer
+            #[cfg(target_os = "windows")]
             {
-                // Copy the installer to the selected location
-                fs::copy(path, &save_path)?;
-
-                // Optional: Open the installer location in file explorer
-                #[cfg(target_os = "windows")]
-                {
-                    let parent = save_path.parent().unwrap_or_else(|| Path::new(""));
-                    std::process::Command::new("explorer").arg(parent).spawn()?;
-                }
-
-                #[cfg(target_os = "macos")]
-                {
-                    let parent = save_path.parent().unwrap_or_else(|| Path::new(""));
-                    std::process::Command::new("open").arg(parent).spawn()?;
-                }
-
-                #[cfg(target_os = "linux")]
-                {
-                    let parent = save_path.parent().unwrap_or_else(|| Path::new(""));
-                    std::process::Command::new("xdg-open").arg(parent).spawn()?;
-                }
+                // On Windows, just execute the installer
+                std::process::Command::new(&path).spawn()?;
             }
-        }
 
-        Ok(())
+            #[cfg(target_os = "macos")]
+            {
+                // On macOS, open the .dmg or .pkg file
+                std::process::Command::new("open").arg(&path).spawn()?;
+            }
+
+            #[cfg(target_os = "linux")]
+            {
+                
+            }
+
+            // Return true to indicate we should exit
+            anyhow::Ok(true)
+        } else {
+            // User clicked No, don't exit
+            Ok(false)
+        }
     })
-    .await
+    .await?;
+
+    if should_exit {
+        // Stop the daemon 
+        stop_daemon().await?;
+
+        // Exit the application
+        tracing::info!("Exiting for update installation");
+        exit(0);
+    }
+
+    Ok(())
 }
 
 async fn read_file_sha256(fname: PathBuf) -> anyhow::Result<String> {
