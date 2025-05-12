@@ -201,10 +201,25 @@ fn default_config() -> geph5_client::Config {
                     },
                 ),
                 (
-                    1000,
+                    500,
                     BrokerSource::Fronted {
                         front: "https://www.vuejs.org/".into(),
                         host: "svitania-naidallszei-2.netlify.app".into(),
+                    },
+                ),
+                (
+                    500,
+                    BrokerSource::Fronted {
+                        front: "https://www.vuejs.org/".into(),
+                        host: "svitania-naidallszei-3.netlify.app".into(),
+                    },
+                ),
+                (
+                    1500,
+                    BrokerSource::AwsLambda {
+                        function_name: "geph-lambda-bouncer".into(),
+                        region: "us-east-1".into(),
+                        obfs_key: "855MJGAMB58MCPJBB97NADJ36D64WM2T:C4TN2M1H68VNMRVCCH57GDV2C5VN6V3RB8QMWP235D0P4RT2ACV7GVTRCHX3EC37".into()
                     },
                 ),
             ]
