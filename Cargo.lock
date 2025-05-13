@@ -1724,7 +1724,7 @@ version = "3.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46f93780a459b7d656ef7f071fe699c4d3d2cb201c4b24d085b6ddc505276e73"
 dependencies = [
- "nix 0.30.1",
+ "nix",
  "windows-sys 0.59.0",
 ]
 
@@ -2853,9 +2853,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-client"
-version = "0.2.59"
+version = "0.2.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aaf1b8413489482aaf960f7576b7fe9eeedb3841a02833eec695d6592c15a908"
+checksum = "1af0ca2f4fbf2483054181493a5dd6692bb208a61ada28001cb025325d1c56df"
 dependencies = [
  "anyctx",
  "anyhow",
@@ -4407,19 +4407,6 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nix"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
-dependencies = [
- "bitflags 2.9.0",
- "cfg-if",
- "cfg_aliases",
- "libc",
- "memoffset",
-]
-
-[[package]]
-name = "nix"
 version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
@@ -4428,6 +4415,7 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc",
+ "memoffset",
 ]
 
 [[package]]
@@ -5403,9 +5391,9 @@ dependencies = [
 
 [[package]]
 name = "psl"
-version = "2.1.107"
+version = "2.1.108"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36d3257075f822569e43169391d51c0483196d37dc21c14807228f4dd1a76545"
+checksum = "b4d0b873458f19667df558849359edcc4786da36ce54c8668fd5d1c36c22b080"
 dependencies = [
  "psl-types",
 ]
@@ -6567,9 +6555,9 @@ dependencies = [
 
 [[package]]
 name = "smolscale"
-version = "0.4.15"
+version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1d0616330d0ee6fa8f441b5c4bb90d73b3fe5961be308c5f2b3e24249330ce6"
+checksum = "99805b6296d73ffb9482277c5310730a2e9c99ad8293acc988b4fb165e3f366e"
 dependencies = [
  "anyhow",
  "async-channel 1.9.0",
@@ -8851,9 +8839,9 @@ dependencies = [
 
 [[package]]
 name = "zbus"
-version = "5.6.0"
+version = "5.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2522b82023923eecb0b366da727ec883ace092e7887b61d3da5139f26b44da58"
+checksum = "88232b74ba057a0c85472ec1bae8a17569960be17da2d5e5ad30d5efe7ea6719"
 dependencies = [
  "async-broadcast",
  "async-executor",
@@ -8869,7 +8857,7 @@ dependencies = [
  "futures-core",
  "futures-lite 2.6.0",
  "hex",
- "nix 0.29.0",
+ "nix",
  "ordered-stream",
  "serde",
  "serde_repr",
@@ -8884,9 +8872,9 @@ dependencies = [
 
 [[package]]
 name = "zbus_macros"
-version = "5.6.0"
+version = "5.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05d2e12843c75108c00c618c2e8ef9675b50b6ec095b36dc965f2e5aed463c15"
+checksum = "6969c06899233334676e60da1675740539cf034ee472a6c5b5c54e50a0a554c9"
 dependencies = [
  "proc-macro-crate 3.3.0",
  "proc-macro2",
@@ -8991,9 +8979,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "5.5.1"
+version = "5.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "557e89d54880377a507c94cd5452f20e35d14325faf9d2958ebeadce0966c1b2"
+checksum = "e34d60a2cff1bfddd0d4a73791fd0a4255a59e349aa0cec437cb0df7776f2450"
 dependencies = [
  "endi",
  "enumflags2",
@@ -9006,9 +8994,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant_derive"
-version = "5.5.1"
+version = "5.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "757779842a0d242061d24c28be589ce392e45350dfb9186dfd7a042a2e19870c"
+checksum = "0604376d86f838e0c3f4fe6d6ee1f861a04dac9015cbbb25c25d336996c91423"
 dependencies = [
  "proc-macro-crate 3.3.0",
  "proc-macro2",

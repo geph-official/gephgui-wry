@@ -198,6 +198,7 @@ fn default_config() -> geph5_client::Config {
                     BrokerSource::Fronted {
                         front: "https://www.cdn77.com/".into(),
                         host: "1826209743.rsc.cdn77.org".into(),
+                        override_dns: None,
                     },
                 ),
                 (
@@ -205,6 +206,7 @@ fn default_config() -> geph5_client::Config {
                     BrokerSource::Fronted {
                         front: "https://www.vuejs.org/".into(),
                         host: "svitania-naidallszei-2.netlify.app".into(),
+                        override_dns: Some(vec!["75.2.60.5".parse().unwrap()])
                     },
                 ),
                 (
@@ -212,6 +214,7 @@ fn default_config() -> geph5_client::Config {
                     BrokerSource::Fronted {
                         front: "https://www.vuejs.org/".into(),
                         host: "svitania-naidallszei-3.netlify.app".into(),
+                        override_dns: Some(vec!["75.2.60.5".parse().unwrap()])
                     },
                 ),
                 (
