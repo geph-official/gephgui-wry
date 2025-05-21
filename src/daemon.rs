@@ -14,7 +14,7 @@ use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
 use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
 use tap::Tap;
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempPath};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -49,16 +49,32 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
     if args.proxy_autoconf {
         configure_proxy()?;
     }
-    start_daemon_inner(args).await?;
-    wait_daemon_start()
+    let (mut child, stderr_path) = start_daemon_inner(args).await?;
+    let started = wait_daemon_start()
         .timeout(Duration::from_secs(30))
         .await
-        .context("daemon did not start in 30")?;
-    smol::Timer::after(Duration::from_millis(500)).await;
-    Ok(())
+        .is_some();
+
+    if started {
+        smol::Timer::after(Duration::from_millis(500)).await;
+        return Ok(());
+    }
+
+    if let (Some(mut child), Some(path)) = (child.as_mut(), stderr_path) {
+        if let Some(status) = child.try_wait()? {
+            use std::io::Read;
+            let mut err = String::new();
+            if let Ok(mut f) = std::fs::File::open(&path) {
+                let _ = f.read_to_string(&mut err);
+            }
+            anyhow::bail!("daemon crashed: {status:?}\n{err}");
+        }
+    }
+
+    anyhow::bail!("daemon did not start in 30")
 }
 
-async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
+async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<(Option<std::process::Child>, Option<TempPath>)> {
     let cfg = running_cfg(args);
 
     let mut tfile = NamedTempFile::with_suffix(".yaml")?;
@@ -89,15 +105,19 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
             cmd.show(false);
             std::thread::spawn(move || cmd.status().unwrap());
         }
+        Ok((None, None))
     } else {
         let mut cmd = Command::new(std::env::current_exe().unwrap());
         cmd.arg("--config").arg(path);
         #[cfg(windows)]
         cmd.creation_flags(0x08000000);
-        cmd.spawn()?;
+        use std::process::Stdio;
+        let tmp = NamedTempFile::new()?;
+        cmd.stderr(Stdio::from(tmp.reopen()?));
+        let tmp_path = tmp.into_temp_path();
+        let child = cmd.spawn()?;
+        Ok((Some(child), Some(tmp_path)))
     }
-
-    Ok(())
 }
 
 async fn wait_daemon_start() {
