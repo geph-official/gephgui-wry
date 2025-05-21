@@ -1,194 +1,300 @@
-use once_cell::sync::Lazy;
-use rand::Rng;
-use serde::Deserialize;
-use tap::Tap;
+use std::{
+    io::Write,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    process::Command,
+    sync::LazyLock,
+    time::Duration,
+};
 
 use anyhow::Context;
+use futures_util::{io::BufReader, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+use geph5_client::{BridgeMode, BrokerKeys, BrokerSource};
+use isocountry::CountryCode;
+use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
+use smol::net::TcpStream;
+use smol_timeout2::TimeoutExt;
+use tap::Tap;
+use tempfile::NamedTempFile;
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
 
-use crate::mtbus::mt_enqueue;
+use crate::{
+    pac::{configure_proxy, deconfigure_proxy},
+    rpc::DaemonArgs,
+};
 
-/// The daemon RPC key
-pub static GEPH_RPC_KEY: Lazy<String> = Lazy::new(|| {
-    smolscale::block_on(async {
-        async fn fallible() -> anyhow::Result<String> {
-            // try reading from file
-            let mut rpc_key_path = dirs::config_dir().context("could not find config directory")?;
-            rpc_key_path.push("geph4-credentials/");
-            std::fs::create_dir_all(&rpc_key_path).context("could not create cache directory")?;
-            rpc_key_path.push("rpc_key");
-            // if key exists, return it
-            if let Ok(key_bytes) = std::fs::read(&rpc_key_path) {
-                let maybe_key: Result<String, _> = bincode::deserialize(&key_bytes);
-                if let Ok(key) = maybe_key {
-                    return Ok(key);
-                }
-            }
-            // else, make a new key and store it in the right location
-            let key = format!("geph-rpc-key-{}", rand::thread_rng().gen::<u128>());
-            std::fs::write(
-                rpc_key_path,
-                bincode::serialize(&key).context("could not serialize RPC key")?,
-            )
-            .context("could not write RPC key to file")?;
-            Ok(key)
-        }
+const CONTROL_ADDR: SocketAddr =
+    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12222);
 
-        match fallible().await {
-            Ok(key) => key,
-            Err(err) => {
-                show_fatal_error(err.to_string()).await;
-                std::process::exit(1);
-            }
-        }
-    })
-});
+pub const PAC_ADDR: SocketAddr =
+    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12223);
 
-async fn show_fatal_error(err: String) {
-    #[cfg(target_os = "macos")]
-    let _ = {
-        use rfd::{MessageButtons, MessageLevel};
-        rfd::AsyncMessageDialog::new()
-            .set_buttons(MessageButtons::Ok)
-            .set_level(MessageLevel::Info)
-            .set_title("System Error / 系统错误")
-            .set_description(&format!("A fatal error has occurred\n系统错误:\n{}", err))
-            .show()
-            .await
-    };
-    #[cfg(not(target_os = "macos"))]
-    let _ = {
-        let (send, recv) = smol::channel::bounded(1);
-        mt_enqueue(move |_wv| {
-            let res = native_dialog::MessageDialog::new()
-                .set_title("System Error / 系统错误")
-                .set_text(&format!("A fatal error has occurred\n系统错误:\n{}", err))
-                .show_alert();
-            let _ = {
-                res.unwrap_or_default();
-                send.try_send(())
-            };
-        });
-        recv.recv().await
-    };
+const SOCKS5_ADDR: SocketAddr =
+    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9909);
+
+pub const HTTP_ADDR: SocketAddr =
+    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9910);
+
+pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
+    if args.global_vpn {
+        anyhow::bail!("cannot restart in VPN mode")
+    }
+    stop_daemon_inner().await?;
+    start_daemon_inner(args).await?;
+    Ok(())
 }
 
-/// Configuration for starting the daemon
-#[derive(Deserialize, Debug)]
-pub struct DaemonConfig {
-    pub username: String,
-    pub password: String,
-    pub exit_hostname: String,
-    pub force_bridges: bool,
-    pub vpn_mode: bool,
-    pub prc_whitelist: bool,
-    pub listen_all: bool,
-    pub force_protocol: Option<String>,
+pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
+    if args.proxy_autoconf {
+        configure_proxy()?;
+    }
+    start_daemon_inner(args).await?;
+    wait_daemon_start()
+        .timeout(Duration::from_secs(30))
+        .await
+        .context("daemon did not start in 30")?;
+    smol::Timer::after(Duration::from_millis(500)).await;
+    Ok(())
 }
 
-const DAEMON_PATH: &str = "geph4-client";
+async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
+    let cfg = running_cfg(args);
 
-pub static DAEMON_VERSION: Lazy<String> = Lazy::new(|| {
-    let mut cmd = std::process::Command::new(DAEMON_PATH);
-    cmd.arg("--version");
+    let mut tfile = NamedTempFile::with_suffix(".yaml")?;
+    let val = serde_json::to_value(&cfg)?;
 
-    #[cfg(windows)]
-    cmd.creation_flags(0x08000000);
+    tfile.write_all(serde_yaml::to_string(&val)?.as_bytes())?;
+    tfile.flush()?;
+    let (_, path) = tfile.keep()?;
 
-    String::from_utf8_lossy(&cmd.output().unwrap().stdout)
-        .replace("geph4-client", "")
-        .trim()
-        .to_string()
-});
-
-/// Returns the daemon version.
-pub fn daemon_version() -> anyhow::Result<String> {
-    Ok(DAEMON_VERSION.clone())
-}
-
-/// Returns the directory where all the log files are found.
-pub fn debugpack_path() -> PathBuf {
-    let mut base = dirs::data_local_dir().expect("no local dir");
-    base.push("geph4-logs.db");
-    base
-}
-
-impl DaemonConfig {
-    /// Starts the daemon, returning a death handle.
-    pub fn start(self) -> anyhow::Result<()> {
-        std::env::set_var("GEPH_RPC_KEY", GEPH_RPC_KEY.clone());
-        let common_args = Vec::new()
-            .tap_mut(|v| {
-                v.push("--exit-server".into());
-                v.push(self.exit_hostname.clone());
-                if let Some(force) = self.force_protocol.clone() {
-                    v.push("--force-protocol".into());
-                    v.push(force);
-                }
-                v.push("--debugpack-path".into());
-                v.push(debugpack_path().to_string_lossy().to_string());
-            })
-            .tap_mut(|v| {
-                if self.prc_whitelist {
-                    v.push("--exclude-prc".into())
-                }
-            })
-            .tap_mut(|v| {
-                if self.force_bridges {
-                    v.push("--use-bridges".into())
-                }
-            })
-            .tap_mut(|v| {
-                if self.listen_all {
-                    v.push("--socks5-listen".into());
-                    v.push("0.0.0.0:9909".into());
-                    v.push("--http-listen".into());
-                    v.push("0.0.0.0:9910".into());
-                }
-            })
-            .tap_mut(|v| {
-                v.push("auth-password".to_string());
-                v.push("--username".to_string());
-                v.push(self.username.clone());
-                v.push("--password".into());
-                v.push(self.password.clone());
+    if cfg.vpn {
+        #[cfg(target_os = "linux")]
+        {
+            let exec_path = std::env::var("APPIMAGE").unwrap_or_else(|_| {
+                std::env::current_exe()
+                    .expect("could not get current_exe")
+                    .display()
+                    .to_string()
             });
 
-        if self.vpn_mode {
-            #[cfg(target_os = "linux")]
-            {
-                let mut cmd = std::process::Command::new("pkexec");
-                cmd.arg(DAEMON_PATH);
-                cmd.arg("connect");
-                cmd.arg("--vpn-mode").arg("tun-route");
-                cmd.args(&common_args);
-                let _child = cmd.spawn().context("cannot spawn non-VPN child")?;
-                Ok(())
-            }
-            #[cfg(target_os = "windows")]
-            {
-                let mut cmd = runas::Command::new(DAEMON_PATH);
-                cmd.arg("connect");
-                cmd.arg("--vpn-mode").arg("windivert");
-                cmd.args(&common_args);
-                cmd.show(false);
-                std::thread::spawn(move || cmd.status().unwrap());
-                Ok(())
-            }
-            #[cfg(target_os = "macos")]
-            {
-                anyhow::bail!("VPN mode not supported on macOS")
-            }
-        } else {
-            let mut cmd = std::process::Command::new(DAEMON_PATH);
-            cmd.arg("connect");
-            cmd.args(&common_args);
-            #[cfg(windows)]
-            cmd.creation_flags(0x08000000);
-            cmd.spawn().context("cannot spawn non-VPN child")?;
-            Ok(())
+            let mut cmd = std::process::Command::new("pkexec");
+            cmd.arg(exec_path).arg("--config").arg(path);
+            cmd.spawn()?;
         }
+        #[cfg(target_os = "windows")]
+        {
+            let mut cmd = runas::Command::new(std::env::current_exe().unwrap());
+            cmd.arg("--config").arg(path);
+            cmd.show(false);
+            std::thread::spawn(move || cmd.status().unwrap());
+        }
+    } else {
+        let mut cmd = Command::new(std::env::current_exe().unwrap());
+        cmd.arg("--config").arg(path);
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000);
+        cmd.spawn()?;
+    }
+
+    Ok(())
+}
+
+async fn wait_daemon_start() {
+    while let Err(err) = check_daemon().await {
+        tracing::warn!(err = debug(err), "daemon check result");
+        smol::Timer::after(Duration::from_millis(50)).await;
+    }
+}
+
+async fn check_daemon() -> anyhow::Result<()> {
+    TcpStream::connect(CONTROL_ADDR)
+        .timeout(Duration::from_millis(50))
+        .await
+        .context("timeout")??;
+    Ok(())
+}
+
+pub async fn stop_daemon() -> anyhow::Result<()> {
+    let _ = deconfigure_proxy();
+    stop_daemon_inner().await
+}
+
+async fn stop_daemon_inner() -> anyhow::Result<()> {
+    let jrpc = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: "stop".into(),
+        params: vec![],
+        id: JrpcId::Number(1),
+    };
+    daemon_rpc(jrpc).await?;
+    smol::Timer::after(Duration::from_millis(1000)).await;
+    Ok(())
+}
+
+pub async fn daemon_running() -> bool {
+    check_daemon().await.is_ok()
+}
+
+/// Either dispatches to a running daemon, or virtually starts a dryrun daemon and runs with it
+pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
+    match daemon_rpc_tcp(inner.clone())
+        .timeout(Duration::from_secs(3))
+        .await
+    {
+        Some(Ok(resp)) => Ok(resp),
+        Some(Err(err)) => {
+            tracing::warn!(
+                method = debug(&inner.method),
+                err = debug(err),
+                "error calling TCP, falling back to direct"
+            );
+            daemon_rpc_direct(inner).await
+        }
+        None => {
+            anyhow::bail!("timed out")
+        }
+    }
+}
+
+async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
+    let conn = TcpStream::connect(CONTROL_ADDR)
+        .timeout(Duration::from_millis(50))
+        .await
+        .context("timeout")
+        .and_then(|s| Ok(s?))?;
+    let (read, mut write) = conn.split();
+    write
+        .write_all(format!("{}\n", serde_json::to_string(&inner)?).as_bytes())
+        .await?;
+    let mut read = BufReader::new(read);
+    let mut buf = String::new();
+    read.read_line(&mut buf).await?;
+    Ok(serde_json::from_str(&buf)?)
+}
+
+async fn daemon_rpc_direct(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
+    if inner.method == "stop" {
+        anyhow::bail!("cannot stop now lol");
+    }
+    static DAEMON: LazyLock<geph5_client::Client> =
+        LazyLock::new(|| geph5_client::Client::start(default_config().inert()));
+    DAEMON.control_client().0.call_raw(inner).await
+}
+
+fn default_config() -> geph5_client::Config {
+    geph5_client::Config {
+        // These fields are the base defaults:
+        socks5_listen: Some(SOCKS5_ADDR),
+        http_proxy_listen: Some(HTTP_ADDR),
+        control_listen: Some(CONTROL_ADDR),
+        exit_constraint: geph5_client::ExitConstraint::Auto,
+        bridge_mode: BridgeMode::Auto,
+        cache: None,
+        broker: Some(BrokerSource::PriorityRace(
+            vec![
+                (
+                    0,
+                    BrokerSource::Fronted {
+                        front: "https://www.cdn77.com/".into(),
+                        host: "1826209743.rsc.cdn77.org".into(),
+                        override_dns: None,
+                    },
+                ),
+                (
+                    500,
+                    BrokerSource::Fronted {
+                        front: "https://www.vuejs.org/".into(),
+                        host: "svitania-naidallszei-2.netlify.app".into(),
+                        override_dns: Some(vec!["75.2.60.5:443".parse().unwrap()])
+                    },
+                ),
+                (
+                    500,
+                    BrokerSource::Fronted {
+                        front: "https://www.vuejs.org/".into(),
+                        host: "svitania-naidallszei-3.netlify.app".into(),
+                        override_dns: Some(vec!["75.2.60.5:443".parse().unwrap()])
+                    },
+                ),
+                (
+                    1500,
+                    BrokerSource::AwsLambda {
+                        function_name: "geph-lambda-bouncer".into(),
+                        region: "us-east-1".into(),
+                        obfs_key: "855MJGAMB58MCPJBB97NADJ36D64WM2T:C4TN2M1H68VNMRVCCH57GDV2C5VN6V3RB8QMWP235D0P4RT2ACV7GVTRCHX3EC37".into()
+                    },
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        )),
+        broker_keys: Some(BrokerKeys {
+            master: "88c1d2d4197bed815b01a22cadfc6c35aa246dddb553682037a118aebfaa3954".into(),
+            mizaru_free: "0558216cbab7a9c46f298f4c26e171add9af87d0694988b8a8fe52ee932aa754".into(),
+            mizaru_plus: "cf6f58868c6d9459b3a63bc2bd86165631b3e916bad7f62b578cd9614e0bcb3b".into(),
+        }),
+        // Values that can be overridden by `args`:
+        vpn: false,
+        spoof_dns: false,
+        passthrough_china: false,
+        dry_run: false,
+        credentials: geph5_broker_protocol::Credential::Secret(String::new()),
+        sess_metadata: Default::default(),
+        task_limit: None,
+        vpn_fd: None,
+        pac_listen: Some(PAC_ADDR),
+    }
+}
+
+fn running_cfg(args: DaemonArgs) -> geph5_client::Config {
+    // Start with the template config:
+    let mut cfg = default_config();
+
+    // Override fields that depend on `args`:
+    cfg.vpn = args.global_vpn;
+    cfg.passthrough_china = args.prc_whitelist;
+    cfg.credentials = geph5_broker_protocol::Credential::Secret(args.secret);
+    if args.listen_all {
+        cfg.socks5_listen =
+            Some(SOCKS5_ADDR.tap_mut(|sa| sa.set_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))));
+        cfg.http_proxy_listen =
+            Some(HTTP_ADDR.tap_mut(|sa| sa.set_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))));
+    }
+
+    cfg.exit_constraint = match args.exit {
+        crate::rpc::ExitConstraint::Auto => geph5_client::ExitConstraint::Auto,
+        crate::rpc::ExitConstraint::Manual { city, country } => {
+            geph5_client::ExitConstraint::CountryCity(
+                CountryCode::for_alpha2(&country).unwrap(),
+                city,
+            )
+        }
+    };
+
+    cfg.sess_metadata = args.metadata;
+
+    cfg
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::daemon::default_config;
+
+    #[test]
+    fn test_dump_default_config() {
+        // Get the default configuration
+        let config = default_config();
+
+        // Convert to JSON and pretty print
+        let json_config =
+            serde_json::to_string_pretty(&config).expect("Failed to serialize config to JSON");
+
+        // Print the JSON representation for inspection
+        println!("Default config JSON representation:");
+        println!("{}", json_config);
+
+        // Assert that the config can be serialized (this should never fail if the previous step succeeded)
+        assert!(serde_json::to_string(&config).is_ok());
     }
 }
