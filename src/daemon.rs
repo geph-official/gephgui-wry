@@ -1,5 +1,5 @@
 use std::{
-    io::Write,
+    io::{Read, Write},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     process::Command,
     sync::LazyLock,
@@ -11,8 +11,12 @@ use futures_util::{io::BufReader, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use geph5_client::{BridgeMode, BrokerKeys, BrokerSource};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
+use oneshot::channel as oneshot_channel;
+use oneshot::Receiver as OneshotReceiver;
+use smol::future::FutureExt as SmolFutureExt;
 use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
+use std::process::Stdio;
 use tap::Tap;
 use tempfile::NamedTempFile;
 
@@ -41,7 +45,7 @@ pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
         anyhow::bail!("cannot restart in VPN mode")
     }
     stop_daemon_inner().await?;
-    start_daemon_inner(args).await?;
+    let _ = start_daemon_inner(args)?;
     Ok(())
 }
 
@@ -49,16 +53,30 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
     if args.proxy_autoconf {
         configure_proxy()?;
     }
-    start_daemon_inner(args).await?;
-    wait_daemon_start()
-        .timeout(Duration::from_secs(30))
-        .await
-        .context("daemon did not start in 30")?;
+    let crash_rx = start_daemon_inner(args)?;
+    let start_fut = async {
+        wait_daemon_start()
+            .timeout(Duration::from_secs(30))
+            .await
+            .context("daemon did not start in 30")?;
+        Ok::<(), anyhow::Error>(())
+    };
+    let crash_fut = async {
+        match crash_rx.await {
+            Ok(stderr) => {
+                anyhow::bail!("daemon exited before becoming reachable:\n{}", stderr)
+            }
+            Err(_) => {
+                anyhow::bail!("daemon exited before becoming reachable")
+            }
+        }
+    };
+    start_fut.race(crash_fut).await?;
     smol::Timer::after(Duration::from_millis(500)).await;
     Ok(())
 }
 
-async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
+fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<OneshotReceiver<String>> {
     let cfg = running_cfg(args);
 
     let mut tfile = NamedTempFile::with_suffix(".yaml")?;
@@ -67,6 +85,8 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
     tfile.write_all(serde_yaml::to_string(&val)?.as_bytes())?;
     tfile.flush()?;
     let (_, path) = tfile.keep()?;
+
+    let (sender, receiver) = oneshot_channel::<String>();
 
     if cfg.vpn {
         #[cfg(target_os = "linux")]
@@ -80,24 +100,39 @@ async fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<()> {
 
             let mut cmd = std::process::Command::new("pkexec");
             cmd.arg(exec_path).arg("--config").arg(path);
-            cmd.spawn()?;
+            std::thread::spawn(move || {
+                let _ = cmd.status();
+                let _ = sender.send(String::new());
+            });
         }
         #[cfg(target_os = "windows")]
         {
             let mut cmd = runas::Command::new(std::env::current_exe().unwrap());
             cmd.arg("--config").arg(path);
             cmd.show(false);
-            std::thread::spawn(move || cmd.status().unwrap());
+            std::thread::spawn(move || {
+                let _ = cmd.status();
+                let _ = sender.send(String::new());
+            });
         }
     } else {
         let mut cmd = Command::new(std::env::current_exe().unwrap());
         cmd.arg("--config").arg(path);
         #[cfg(windows)]
         cmd.creation_flags(0x08000000);
-        cmd.spawn()?;
+        cmd.stderr(Stdio::piped());
+        let mut child = cmd.spawn()?;
+        std::thread::spawn(move || {
+            let mut buf = String::new();
+            if let Some(mut stderr) = child.stderr.take() {
+                stderr.read_to_string(&mut buf).ok();
+            }
+            let _ = child.wait();
+            let _ = sender.send(buf);
+        });
     }
 
-    Ok(())
+    Ok(receiver)
 }
 
 async fn wait_daemon_start() {

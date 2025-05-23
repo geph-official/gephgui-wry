@@ -3019,6 +3019,7 @@ dependencies = [
  "nanorpc",
  "native-dialog",
  "once_cell",
+ "oneshot",
  "open",
  "parking_lot 0.11.2",
  "png",
