@@ -39,6 +39,8 @@ ureq = "2.3.0"
 flume = "0.10.14"
 webbrowser = "0.5.5"
 
+oneshot = "0.1"
+
 isahc = "1.7.2"
 serde_yaml = "0.9.14"
 semver = "1.0.14"
