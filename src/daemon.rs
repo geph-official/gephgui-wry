@@ -11,12 +11,12 @@ use futures_util::{io::BufReader, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use geph5_client::{BridgeMode, BrokerKeys, BrokerSource};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
-use smol::net::TcpStream;
-use smol::future::FutureExt as SmolFutureExt;
 use oneshot::channel as oneshot_channel;
 use oneshot::Receiver as OneshotReceiver;
-use std::process::Stdio;
+use smol::future::FutureExt as SmolFutureExt;
+use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
+use std::process::Stdio;
 use tap::Tap;
 use tempfile::NamedTempFile;
 
@@ -125,8 +125,7 @@ fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<OneshotReceiver<String
         std::thread::spawn(move || {
             let mut buf = String::new();
             if let Some(mut stderr) = child.stderr.take() {
-                let mut reader = std::io::BufReader::new(stderr);
-                reader.read_to_string(&mut buf).ok();
+                stderr.read_to_string(&mut buf).ok();
             }
             let _ = child.wait();
             let _ = sender.send(buf);
