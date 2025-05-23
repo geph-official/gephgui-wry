@@ -4,15 +4,14 @@ use autoupdate::check_update_loop;
 // use autoupdate::autoupdate_loop;
 use fakefs::FakeFs;
 
-use mtbus::mt_next;
+use mtbus::{mt_next, MtHandler};
 
 use rpc::ipc_handle;
-// #[cfg(feature = "tray")]
-// use tao::system_tray::{SystemTray, SystemTrayBuilder};
+use tao::system_tray::{SystemTray, SystemTrayBuilder};
 use tao::{
     dpi::LogicalSize,
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
+    event::{Event, WindowEvent, TrayEvent},
+    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget},
     window::{Icon, Window, WindowBuilder},
 };
 
@@ -28,6 +27,15 @@ use wry::{WebContext, WebView, WebViewBuilder};
 
 const WINDOW_WIDTH: i32 = 400;
 const WINDOW_HEIGHT: i32 = 720;
+
+pub fn create_tray<T>(event_loop: &tao::event_loop::EventLoopWindowTarget<T>) -> SystemTray {
+    let logo_png = png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref());
+    let mut logo_png = logo_png.read_info().unwrap();
+    let mut icon_buf = vec![0; logo_png.output_buffer_size()];
+    logo_png.next_frame(&mut icon_buf).unwrap();
+    let icon = Icon::from_rgba(icon_buf, logo_png.info().width, logo_png.info().height).unwrap();
+    SystemTrayBuilder::new(icon).build(event_loop).unwrap()
+}
 
 fn main() -> anyhow::Result<()> {
     geph5_client::logging::init_logging()?;
@@ -69,12 +77,11 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    let event_loop: EventLoop<Box<dyn FnOnce(&WebView, &Window) + Send + 'static>> =
-        EventLoopBuilder::with_user_event().build();
+    let event_loop: EventLoop<MtHandler<()>> = EventLoopBuilder::with_user_event().build();
     let evt_proxy = event_loop.create_proxy();
     std::thread::spawn(move || loop {
         let evt = mt_next();
-        evt_proxy.send_event(Box::new(evt)).ok().unwrap();
+        evt_proxy.send_event(evt).ok().unwrap();
     });
 
     let window = WindowBuilder::new()
@@ -131,17 +138,29 @@ fn main() -> anyhow::Result<()> {
         let vbox = window.default_vbox().unwrap();
         builder.build_gtk(vbox)?
     };
-    event_loop.run(move |event, _, control_flow| {
+    let mut tray: Option<SystemTray> = None;
+    let mut running = false;
+    event_loop.run(move |event, target, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
-            Event::UserEvent(e) => e(&webview, &window),
+            Event::UserEvent(e) => e(&webview, &window, target, &mut tray, &mut running),
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                println!("The close button was pressed; stopping");
-                *control_flow = ControlFlow::Exit
+                if running {
+                    window.set_visible(false);
+                } else {
+                    *control_flow = ControlFlow::Exit;
+                }
             }
+            Event::TrayEvent { event, .. } => match event {
+                TrayEvent::LeftClick { .. } | TrayEvent::RightClick { .. } => {
+                    window.set_visible(true);
+                    window.set_focus();
+                }
+                _ => {}
+            },
             Event::MainEventsCleared => {
                 // Application update code.
 

@@ -8,7 +8,7 @@ use webbrowser::open_browser;
 use crate::{
     daemon::{daemon_rpc, daemon_running, restart_daemon, start_daemon, stop_daemon},
     mtbus::mt_enqueue,
-    WINDOW_HEIGHT, WINDOW_WIDTH,
+    create_tray, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 
 #[derive(Deserialize)]
@@ -23,14 +23,14 @@ pub fn ipc_handle(ipc_string: String) -> anyhow::Result<()> {
     smolscale::spawn(async move {
         let rpc = IpcService(RpcProtocolImpl).respond_raw(ipc.inner).await;
 
-        mt_enqueue(move |wv, _| {
+        mt_enqueue(Box::new(move |wv, _, _, _, _| {
             wv.evaluate_script(&format!(
                 "({})({})",
                 ipc.callback_code,
                 serde_json::to_string(&rpc).unwrap()
             ))
             .unwrap();
-        });
+        }));
     })
     .detach();
     Ok(())
@@ -42,27 +42,49 @@ pub fn ipc_handle(ipc_string: String) -> anyhow::Result<()> {
 trait IpcProtocol {
     /// Handles a request to change DPI on, say, GTK platforms with pseudo-hidpi through font size changes.
     async fn set_conversion_factor(&self, factor: f64) {
-        mt_enqueue(move |_, window| {
+        mt_enqueue(Box::new(move |_, window, _, _, _| {
             window.set_inner_size(LogicalSize {
                 width: WINDOW_WIDTH as f64 * factor,
                 height: WINDOW_HEIGHT as f64 * factor,
             });
-        });
+        }));
     }
 
     /// Start the daemon with the given arguments.
     async fn start_daemon(&self, args: DaemonArgs) -> Result<(), String> {
-        start_daemon(args).await.map_err(|s| format!("{:?}", s))
+        let res = start_daemon(args).await.map_err(|s| format!("{:?}", s));
+        if res.is_ok() {
+            mt_enqueue(Box::new(|_, _, target, tray, running| {
+                if tray.is_none() {
+                    *tray = Some(crate::create_tray(target));
+                }
+                *running = true;
+            }));
+        }
+        res
     }
 
     /// Stop the daemon.
     async fn stop_daemon(&self) {
         let _ = stop_daemon().await;
+        mt_enqueue(Box::new(|_, _, _target, tray, running| {
+            *running = false;
+            *tray = None;
+        }));
     }
 
     /// Restart the daemon with the given arguments.
     async fn restart_daemon(&self, args: DaemonArgs) -> Result<(), String> {
-        restart_daemon(args).await.map_err(|s| format!("{:?}", s))
+        let res = restart_daemon(args).await.map_err(|s| format!("{:?}", s));
+        if res.is_ok() {
+            mt_enqueue(Box::new(|_, _, target, tray, running| {
+                if tray.is_none() {
+                    *tray = Some(crate::create_tray(target));
+                }
+                *running = true;
+            }));
+        }
+        res
     }
 
     /// Returns whether the daemon is running.
