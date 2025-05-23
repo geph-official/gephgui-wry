@@ -86,12 +86,13 @@ version = "0.50"
 version = "6.2.0"
 features = ["debug-embed"]
 
-
+# This attempts to prevent Defender from yelling at us
 [profile.release]
 panic = "abort"
-opt-level=3
+opt-level='z'
 lto=true
-#strip=true
+strip=true
+codegen-units = 1
 
 
 [profile.dev]
