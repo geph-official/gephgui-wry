@@ -228,6 +228,7 @@ fn default_config() -> geph5_client::Config {
         cache: None,
         broker: Some(BrokerSource::PriorityRace(
             vec![
+                // (0, BrokerSource::Direct("http://127.0.0.1:4000".to_owned())),
                 (
                     0,
                     BrokerSource::Fronted {

@@ -82,6 +82,10 @@ trait IpcProtocol {
             params: args,
             id: JrpcId::Number(1),
         };
+        tracing::debug!(
+            "WAWAWAWA CHAMUEL: {}",
+            serde_json::to_string(&jrpc).unwrap()
+        );
         let resp = daemon_rpc(jrpc).await.map_err(|e| format!("{:?}", e))?;
         if let Some(err) = resp.error {
             tracing::warn!("error: {:?}", err);
