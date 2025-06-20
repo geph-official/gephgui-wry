@@ -6,7 +6,8 @@ use std::{
 
 use anyhow::Context;
 use async_trait::async_trait;
-use geph5_client::ControlClient;
+
+use geph5_misc_rpc::client_control::ControlClient;
 use nanorpc::{JrpcRequest, JrpcResponse, RpcTransport};
 use rfd::MessageDialog;
 use semver::Version;

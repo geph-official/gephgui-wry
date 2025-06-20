@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [patch.crates-io]
-geph5-client={path="../geph5/binaries/geph5-client"}
-geph5-broker-protocol={path="../geph5/libraries/geph5-broker-protocol"}
+#geph5-client={path="../geph5/binaries/geph5-client"}
+#geph5-broker-protocol={path="../geph5/libraries/geph5-broker-protocol"}
 
 
 [features]
@@ -65,6 +65,7 @@ hex = "0.4.3"
 minisign-verify = "0.2.3"
 sys-locale = "0.3.2"
 tiny_http = "0.12.0"
+geph5-misc-rpc = "0.2.64"
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"

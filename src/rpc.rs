@@ -82,10 +82,7 @@ trait IpcProtocol {
             params: args,
             id: JrpcId::Number(1),
         };
-        tracing::debug!(
-            "WAWAWAWA CHAMUEL: {}",
-            serde_json::to_string(&jrpc).unwrap()
-        );
+
         let resp = daemon_rpc(jrpc).await.map_err(|e| format!("{:?}", e))?;
         if let Some(err) = resp.error {
             tracing::warn!("error: {:?}", err);
@@ -94,9 +91,35 @@ trait IpcProtocol {
         Ok(resp.result.unwrap_or_default())
     }
 
+    /// Returns info for basic plan
+    async fn get_basic_info(&self, secret: String) -> Result<serde_json::Value, String> {
+        let limit = self.daemon_rpc("basic_mb_limit".into(), vec![]).await?;
+        let show: bool = serde_json::from_value(
+            self.daemon_rpc(
+                "ab_test".into(),
+                vec![serde_json::json!("basic"), serde_json::json!(secret)],
+            )
+            .await?,
+        )
+        .map_err(|e| e.to_string())?;
+        if show {
+            Ok(serde_json::json!({"bw_limit": limit}))
+        } else {
+            Ok(serde_json::json!(null))
+        }
+    }
+
     /// Returns a list of price points.
     async fn price_points(&self) -> Result<Vec<(u32, f64)>, String> {
         let v = self.daemon_rpc("price_points".to_string(), vec![]).await?;
+        Ok(serde_json::from_value(v).map_err(|s| format!("{:?}", s))?)
+    }
+
+    /// Returns a list of "basic" price points.
+    async fn basic_price_points(&self) -> Result<Vec<(u32, f64)>, String> {
+        let v = self
+            .daemon_rpc("basic_price_points".to_string(), vec![])
+            .await?;
         Ok(serde_json::from_value(v).map_err(|s| format!("{:?}", s))?)
     }
 
@@ -108,7 +131,20 @@ trait IpcProtocol {
         let methods: Vec<String> = serde_json::from_value(methods)
             .map_err(|_| "cannot deserialize methods".to_string())?;
         Ok(InvoiceInfo {
-            id: serde_json::to_string(&(secret, days)).unwrap(),
+            id: serde_json::to_string(&(secret, days, "unlimited")).unwrap(),
+            methods,
+        })
+    }
+
+    /// Create an invoice using a number of days, returning an `InvoiceInfo`.
+    async fn create_basic_invoice(&self, secret: String, days: u32) -> Result<InvoiceInfo, String> {
+        let methods = self
+            .daemon_rpc("payment_methods".to_string(), vec![])
+            .await?;
+        let methods: Vec<String> = serde_json::from_value(methods)
+            .map_err(|_| "cannot deserialize methods".to_string())?;
+        Ok(InvoiceInfo {
+            id: serde_json::to_string(&(secret, days, "basic")).unwrap(),
             methods,
         })
     }
@@ -116,10 +152,16 @@ trait IpcProtocol {
     /// Pay an invoice with a given method.
     async fn pay_invoice(&self, id: String, method: String) -> Result<(), String> {
         tracing::warn!("GONNA PAY INVOICE {id} {method}");
-        let (secret, days): (String, u32) = serde_json::from_str(&id).map_err(|e| e.to_string())?;
+        let (secret, days, level): (String, u32, String) =
+            serde_json::from_str(&id).map_err(|e| e.to_string())?;
         let url = self
             .daemon_rpc(
-                "create_payment".to_string(),
+                if level == "basic" {
+                    "create_basic_payment"
+                } else {
+                    "create_payment"
+                }
+                .to_string(),
                 vec![json!(secret), json!(days), json!(method)],
             )
             .await?;
