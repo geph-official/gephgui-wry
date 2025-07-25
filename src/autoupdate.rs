@@ -87,7 +87,9 @@ async fn check_update_inner() -> anyhow::Result<()> {
     }
 
     // We only do the popup if this time around we *didn't* need to download.
-    run_update(entry.version, download_path_str).await?;
+    if !need_download {
+        run_update(entry.version, download_path_str).await?;
+    }
 
     Ok(())
 }
