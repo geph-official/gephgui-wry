@@ -138,7 +138,7 @@ fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<OneshotReceiver<String
 async fn wait_daemon_start() {
     while let Err(err) = check_daemon().await {
         tracing::warn!(err = debug(err), "daemon check result");
-        smol::Timer::after(Duration::from_millis(50)).await;
+        smol::Timer::after(Duration::from_millis(250)).await;
     }
 }
 
