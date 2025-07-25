@@ -22,7 +22,7 @@ pub async fn check_update_loop() {
             tracing::debug!(err = debug(err), "checking update failed!");
             smol::Timer::after(Duration::from_secs(10)).await;
         } else {
-            smol::Timer::after(Duration::from_secs(3600)).await;
+            break;
         }
     }
 }
@@ -86,7 +86,7 @@ async fn check_update_inner() -> anyhow::Result<()> {
         }
     }
 
-    // Now that we have the file (either downloaded or already had it), show the update dialog
+    // We only do the popup if this time around we *didn't* need to download.
     run_update(entry.version, download_path_str).await?;
 
     Ok(())
@@ -125,7 +125,7 @@ async fn run_update(version: String, path: String) -> anyhow::Result<()> {
             #[cfg(target_os = "windows")]
             {
                 // On Windows, just execute the installer
-                std::process::Command::new(&path).spawn()?;
+                std::process::Command::new(&path).arg("/SILENT").spawn()?;
             }
 
             #[cfg(target_os = "macos")]
