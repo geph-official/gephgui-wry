@@ -92,8 +92,8 @@ features = ["debug-embed"]
 # This attempts to prevent Defender from yelling at us
 [profile.release]
 panic = "abort"
-opt-level='z'
-lto=true
+opt-level=3
+#lto=false
 strip=true
 codegen-units = 1
 
