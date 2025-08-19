@@ -4,6 +4,7 @@ use fakefs::FakeFs;
 
 use mtbus::mt_next;
 
+use muda::{Menu, PredefinedMenuItem, Submenu};
 use rpc::ipc_handle;
 // #[cfg(feature = "tray")]
 // use tao::system_tray::{SystemTray, SystemTrayBuilder};
@@ -14,8 +15,7 @@ use tao::{
     window::{Icon, Window, WindowBuilder},
 };
 
-#[cfg(target_os = "macos")]
-use tao::menu::{MenuBar, PredefinedMenuItem, Submenu};
+// #[cfg(target_os = "macos")]
 
 mod autoupdate;
 mod daemon;
@@ -78,9 +78,6 @@ fn main() -> anyhow::Result<()> {
         evt_proxy.send_event(Box::new(evt)).ok().unwrap();
     });
 
-    #[cfg(target_os = "macos")]
-    let menubar = edit_menu();
-
     let window = WindowBuilder::new()
         .with_resizable(true)
         .with_inner_size(LogicalSize {
@@ -102,7 +99,10 @@ fn main() -> anyhow::Result<()> {
         .unwrap();
 
     #[cfg(target_os = "macos")]
-    window.set_menu(Some(menubar));
+    {
+        let menu = edit_menu();
+        menu.init_for_nsapp();
+    }
 
     let initjs = include_str!("init.js").to_string();
     #[cfg(target_os = "macos")]
@@ -171,19 +171,17 @@ fn main() -> anyhow::Result<()> {
     });
 }
 
-#[cfg(target_os = "macos")]
-fn edit_menu() -> MenuBar {
-    let mut menubar = MenuBar::new();
-
-    let mut edit = MenuBar::new();
-    edit.add_native_item(PredefinedMenuItem::Undo);
-    edit.add_native_item(PredefinedMenuItem::Redo);
-    edit.add_native_item(PredefinedMenuItem::Separator);
-    edit.add_native_item(PredefinedMenuItem::Cut);
-    edit.add_native_item(PredefinedMenuItem::Copy);
-    edit.add_native_item(PredefinedMenuItem::Paste);
-    edit.add_native_item(PredefinedMenuItem::SelectAll);
-
-    menubar.add_submenu(Submenu::new("Edit", true, edit));
-    menubar
+// #[cfg(target_os = "macos")]
+fn edit_menu() -> anyhow::Result<Menu> {
+    let edit = Submenu::with_items(
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::copy(None),
+            &PredefinedMenuItem::paste(None),
+        ],
+    )?;
+    let menu = Menu::new();
+    menu.append(&edit)?;
+    Ok(menu)
 }

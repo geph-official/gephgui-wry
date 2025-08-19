@@ -66,6 +66,7 @@ minisign-verify = "0.2.4"
 sys-locale = "0.3.2"
 tiny_http = "0.12.0"
 geph5-misc-rpc = "0.2.68"
+muda = "0.17.1"
 
 [target.'cfg(windows)'.dependencies]
 is_elevated= "0.1.2"
