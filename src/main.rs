@@ -4,7 +4,6 @@ use fakefs::FakeFs;
 
 use mtbus::mt_next;
 
-use muda::{Menu, PredefinedMenuItem, Submenu};
 use rpc::ipc_handle;
 // #[cfg(feature = "tray")]
 // use tao::system_tray::{SystemTray, SystemTrayBuilder};
@@ -15,7 +14,8 @@ use tao::{
     window::{Icon, Window, WindowBuilder},
 };
 
-// #[cfg(target_os = "macos")]
+#[cfg(target_os = "macos")]
+use muda::{Menu, PredefinedMenuItem, Submenu};
 
 mod autoupdate;
 mod daemon;
@@ -171,7 +171,7 @@ fn main() -> anyhow::Result<()> {
     });
 }
 
-// #[cfg(target_os = "macos")]
+#[cfg(target_os = "macos")]
 fn edit_menu() -> anyhow::Result<Menu> {
     let edit = Submenu::with_items(
         "Edit",
