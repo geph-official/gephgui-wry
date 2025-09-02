@@ -1,14 +1,14 @@
 use async_trait::async_trait;
-use nanorpc::{nanorpc_derive, JrpcId, JrpcRequest, RpcService};
+use nanorpc::{JrpcId, JrpcRequest, RpcService, nanorpc_derive};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tao::dpi::LogicalSize;
 use webbrowser::open_browser;
 
 use crate::{
+    WINDOW_HEIGHT, WINDOW_WIDTH,
     daemon::{daemon_rpc, daemon_running, restart_daemon, start_daemon, stop_daemon},
     mtbus::mt_enqueue,
-    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 
 #[derive(Deserialize)]
@@ -183,7 +183,6 @@ trait IpcProtocol {
 
     /// Obtain the actual contents of the debug pack.
     async fn get_debug_pack(&self) -> String {
-        let gui_logs = geph5_client::logging::get_json_logs();
         let daemon_logs = self
             .daemon_rpc("recent_logs".to_string(), vec![])
             .await
@@ -191,7 +190,7 @@ trait IpcProtocol {
         let daemon_logs: Vec<String> = serde_json::from_value(daemon_logs).unwrap_or_default();
         let daemon_logs = daemon_logs.join("\n");
 
-        format!("===== GUI =====\n\n{gui_logs}\n\n===== DAEMON =====\n\n {daemon_logs}")
+        format!("===== DAEMON =====\n\n {daemon_logs}")
     }
 
     /// Get the icon of an app, returning it as a URL string.

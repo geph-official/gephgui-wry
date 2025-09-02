@@ -31,8 +31,6 @@ const WINDOW_WIDTH: i32 = 400;
 const WINDOW_HEIGHT: i32 = 720;
 
 fn main() -> anyhow::Result<()> {
-    geph5_client::logging::init_logging()?;
-
     // see whether this is a subprocess that simulates "geph5-client --config ..."
     let args = std::env::args().collect::<Vec<_>>();
     if let Some("--config") = args.get(1).map(|s| s.as_str()) {
@@ -73,9 +71,11 @@ fn main() -> anyhow::Result<()> {
     let event_loop: EventLoop<Box<dyn FnOnce(&WebView, &Window) + Send + 'static>> =
         EventLoopBuilder::with_user_event().build();
     let evt_proxy = event_loop.create_proxy();
-    std::thread::spawn(move || loop {
-        let evt = mt_next();
-        evt_proxy.send_event(Box::new(evt)).ok().unwrap();
+    std::thread::spawn(move || {
+        loop {
+            let evt = mt_next();
+            evt_proxy.send_event(Box::new(evt)).ok().unwrap();
+        }
     });
 
     let window = WindowBuilder::new()

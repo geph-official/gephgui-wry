@@ -7,12 +7,12 @@ use std::{
 };
 
 use anyhow::Context;
-use futures_util::{io::BufReader, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, io::BufReader};
 use geph5_client::{BridgeMode, BrokerKeys, BrokerSource};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
-use oneshot::channel as oneshot_channel;
 use oneshot::Receiver as OneshotReceiver;
+use oneshot::channel as oneshot_channel;
 use smol::future::FutureExt as SmolFutureExt;
 use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
@@ -136,6 +136,7 @@ fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<OneshotReceiver<String
 }
 
 async fn wait_daemon_start() {
+    smol::Timer::after(Duration::from_millis(150)).await;
     while let Err(err) = check_daemon().await {
         tracing::warn!(err = debug(err), "daemon check result");
         smol::Timer::after(Duration::from_millis(250)).await;
@@ -179,11 +180,11 @@ pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
     {
         Some(Ok(resp)) => Ok(resp),
         Some(Err(err)) => {
-            tracing::warn!(
-                method = debug(&inner.method),
-                err = debug(err),
-                "error calling TCP, falling back to direct"
-            );
+            // tracing::warn!(
+            //     method = debug(&inner.method),
+            //     err = debug(err),
+            //     "error calling TCP, falling back to direct"
+            // );
             daemon_rpc_direct(inner).await
         }
         None => {
