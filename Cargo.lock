@@ -148,6 +148,8 @@ dependencies = [
 [[package]]
 name = "arc-writer"
 version = "0.2.1-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e15dd4b662a8ee95155b5f897c9302805c7df12f6ae63b29310697f47e2bf98b"
 
 [[package]]
 name = "arrayref"
@@ -2877,6 +2879,8 @@ dependencies = [
 [[package]]
 name = "geph5-broker-protocol"
 version = "0.2.82"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2899a2c2046528085d148085b26bfbf0b094df603ce71c22ceccbab690b1dd"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2893,7 +2897,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with 3.14.0",
- "sillad-meeklike 0.1.1",
+ "sillad-meeklike",
  "stdcode",
  "thiserror 1.0.69",
  "tracing",
@@ -2902,6 +2906,8 @@ dependencies = [
 [[package]]
 name = "geph5-client"
 version = "0.2.83"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bd29c43433ee4d6a3add85719d903cce0bd1e080576d3992870d658d7757b90"
 dependencies = [
  "anyctx",
  "anyhow",
@@ -2939,7 +2945,7 @@ dependencies = [
  "futures-intrusive",
  "futures-util",
  "geph5-broker-protocol",
- "geph5-misc-rpc 0.2.82",
+ "geph5-misc-rpc",
  "hex",
  "http 1.3.1",
  "http-body-util",
@@ -2974,10 +2980,10 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "sillad 0.2.6",
+ "sillad",
  "sillad-conntest",
  "sillad-hex",
- "sillad-meeklike 0.1.1",
+ "sillad-meeklike",
  "sillad-native-tls",
  "sillad-sosistab3",
  "simple-dns",
@@ -3004,36 +3010,6 @@ dependencies = [
 [[package]]
 name = "geph5-misc-rpc"
 version = "0.2.82"
-dependencies = [
- "anyhow",
- "async-task",
- "async-trait",
- "bipe",
- "blake3",
- "bytes",
- "chacha20poly1305",
- "ed25519-dalek",
- "futures-util",
- "geph5-broker-protocol",
- "nanorpc",
- "pin-project",
- "serde",
- "serde_json",
- "sillad 0.2.6",
- "sillad-meeklike 0.1.1",
- "smallvec",
- "smolscale",
- "socksv5",
- "stdcode",
- "tachyonix",
- "tap",
- "thiserror 1.0.69",
- "x25519-dalek",
-]
-
-[[package]]
-name = "geph5-misc-rpc"
-version = "0.2.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ae90e62699df8435c2522d7e94b371a08809762751b37ea42b76435f5834919"
 dependencies = [
@@ -3051,8 +3027,8 @@ dependencies = [
  "pin-project",
  "serde",
  "serde_json",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "sillad-meeklike 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
+ "sillad-meeklike",
  "smallvec",
  "smolscale",
  "socksv5",
@@ -3077,7 +3053,7 @@ dependencies = [
  "futures-util",
  "geph5-broker-protocol",
  "geph5-client",
- "geph5-misc-rpc 0.2.82 (registry+https://github.com/rust-lang/crates.io-index)",
+ "geph5-misc-rpc",
  "hex",
  "hmac-sha256",
  "infer",
@@ -4402,6 +4378,8 @@ dependencies = [
 [[package]]
 name = "mizaru2"
 version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c46859ff3b2f98c1dc77bf89abcdcc2750371efc07ef61b06190925d2459750d"
 dependencies = [
  "blake3",
  "blind-rsa-signatures",
@@ -4495,6 +4473,8 @@ dependencies = [
 [[package]]
 name = "nanorpc-sillad"
 version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ec964bfdd2969ec140b474e4d7f0cb48d6341b3798c9753526311743ec7a1bb"
 dependencies = [
  "anyhow",
  "async-executor",
@@ -4502,7 +4482,7 @@ dependencies = [
  "futures-util",
  "nanorpc",
  "serde_json",
- "sillad 0.2.6",
+ "sillad",
  "thiserror 1.0.69",
 ]
 
@@ -5305,6 +5285,8 @@ dependencies = [
 [[package]]
 name = "picomux"
 version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42050e8ffdfa908a713de81105407550325f8f63cb6a45a02f23b7d44fec7b1e"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5334,7 +5316,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "serde_json",
- "sillad 0.2.6",
+ "sillad",
  "smol-timeout2",
  "smolscale",
  "tachyonix",
@@ -6660,23 +6642,6 @@ dependencies = [
 [[package]]
 name = "sillad"
 version = "0.2.6"
-dependencies = [
- "anyhow",
- "async-io 2.5.0",
- "async-trait",
- "futures-concurrency",
- "futures-lite 2.6.1",
- "futures-util",
- "libc",
- "pin-project",
- "rand 0.8.5",
- "smol-timeout2",
- "tracing",
-]
-
-[[package]]
-name = "sillad"
-version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7488ba2d514faebbc82642eb2e24ecd8194b1a5ce8c94f78e841c8ee577cf7f1"
 dependencies = [
@@ -6696,6 +6661,8 @@ dependencies = [
 [[package]]
 name = "sillad-conntest"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "903aef2d7729a304f8513bffff708007763e997e07cf4688976f6431ec372243"
 dependencies = [
  "async-io 2.5.0",
  "async-task",
@@ -6703,7 +6670,7 @@ dependencies = [
  "futures-lite 2.6.1",
  "futures-util",
  "rand 0.9.2",
- "sillad 0.2.6",
+ "sillad",
  "smolscale",
  "tachyonix",
  "tracing",
@@ -6712,51 +6679,14 @@ dependencies = [
 [[package]]
 name = "sillad-hex"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c025ce4c94a6e1338c5a671c1dd0d777d0f7c1eb65eb9445894a13c2a0f25807"
 dependencies = [
- "async-task",
  "async-trait",
- "bipe",
  "futures-util",
  "hex",
  "pin-project",
- "sillad 0.2.6",
- "smolscale",
-]
-
-[[package]]
-name = "sillad-meeklike"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "async-channel 1.9.0",
- "async-compat",
- "async-io 2.5.0",
- "async-task",
- "async-trait",
- "base64 0.22.1",
- "bipe",
- "blake3",
- "bytes",
- "chacha20poly1305",
- "dashmap 5.5.3",
- "event-listener 5.4.1",
- "futures-lite 2.6.1",
- "futures-util",
- "hex",
- "http-body-util",
- "hyper 1.7.0",
- "hyper-util",
- "parking_lot 0.12.4",
- "pin-project",
- "rand 0.8.5",
- "scopeguard",
- "serde",
- "sillad 0.2.6",
- "smol-timeout2",
- "smolscale",
- "stdcode",
- "tracing",
- "virta",
+ "sillad",
 ]
 
 [[package]]
@@ -6789,7 +6719,7 @@ dependencies = [
  "rand 0.8.5",
  "scopeguard",
  "serde",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "smol-timeout2",
  "smolscale",
  "stdcode",
@@ -6800,13 +6730,15 @@ dependencies = [
 [[package]]
 name = "sillad-native-tls"
 version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f01610980c4343852ad63ced247035e656e1faa98bba29d8e361b0d512e4584"
 dependencies = [
  "async-native-tls",
  "async-task",
  "async-trait",
  "futures-lite 2.6.1",
  "native-tls",
- "sillad 0.2.6",
+ "sillad",
  "smolscale",
  "tachyonix",
  "tracing",
@@ -6815,6 +6747,8 @@ dependencies = [
 [[package]]
 name = "sillad-sosistab3"
 version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0268195b6d648a9f823d459bbc53728b63226ed3931d26cff2aa981248fd3e0e"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -6822,7 +6756,6 @@ dependencies = [
  "async-io 2.5.0",
  "async-task",
  "async-trait",
- "bipe",
  "blake3",
  "chacha20poly1305",
  "futures-util",
@@ -6832,7 +6765,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sillad 0.2.6",
+ "sillad",
  "smallvec",
  "smolscale",
  "tachyonix",
