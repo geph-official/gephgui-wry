@@ -32,7 +32,7 @@ const hardcodedProps = {
   supports_prc_whitelist: true,
   supports_proxy_conf: true,
   supports_listen_all: true,
-  supports_vpn_conf: true,
+  supports_vpn_conf: false,
   supports_autoupdate: true,
 };
 
