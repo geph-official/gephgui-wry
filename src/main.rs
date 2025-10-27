@@ -109,6 +109,10 @@ fn main() -> anyhow::Result<()> {
     // horrifying HACK
     let initjs = initjs.replace("supports_vpn_conf: true", "supports_vpn_conf: false");
 
+    #[cfg(target_os = "linux")]
+    // horrifying HACK
+    let initjs = initjs.replace("supports_vpn_conf: true", "supports_vpn_conf: false");
+
     let mut wctx = WebContext::new(dirs::config_dir());
     let builder = WebViewBuilder::with_web_context(&mut wctx)
         .with_url("http://127.0.0.1:5678")
