@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "macos")]
     {
         let menu = edit_menu();
-        menu.init_for_nsapp();
+        menu?.init_for_nsapp();
     }
 
     let initjs = include_str!("init.js").to_string();
