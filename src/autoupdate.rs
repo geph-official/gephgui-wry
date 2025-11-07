@@ -29,21 +29,20 @@ const METADATA_FILE: &str = "update-metadata.json";
 /// metadata so we can prompt on the next startup.
 pub async fn download_update_loop() {
     loop {
+        let delay =
+            sample_poisson_delay(Duration::from_secs_f64(UPDATE_MEAN_INTERVAL_HOURS * 3600.0));
+        tracing::debug!(delay = debug(delay), "delay set for update checking");
+        smol::Timer::after(delay).await;
         match ensure_update_cached().await {
             Ok(reason) => {
-                let delay = sample_poisson_delay(Duration::from_secs_f64(
-                    UPDATE_MEAN_INTERVAL_HOURS * 3600.0,
-                ));
                 tracing::debug!(
                     ?reason,
                     wait_seconds = delay.as_secs_f64(),
                     "next update check scheduled"
                 );
-                smol::Timer::after(delay).await;
             }
             Err(err) => {
                 tracing::debug!(err = debug(err), "failed to cache update");
-                smol::Timer::after(Duration::from_secs(RETRY_DELAY_SECONDS)).await;
             }
         }
     }
