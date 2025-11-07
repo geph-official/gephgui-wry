@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::daemon::{daemon_rpc, stop_daemon};
 
-const UPDATE_MEAN_INTERVAL_HOURS: f64 = 72.0;
+const UPDATE_MEAN_INTERVAL_HOURS: f64 = 6.0;
 const RETRY_DELAY_SECONDS: u64 = 600;
 const CACHE_FOLDER: &str = "geph5-dl";
 const METADATA_FILE: &str = "update-metadata.json";
