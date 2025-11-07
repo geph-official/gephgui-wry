@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
 
     // DO NOT run the autoupdate logic on flatpak, but otherwise it's good
     if std::env::var("FLATPAK_ID").is_err() {
-        smol::future::block_on(autoupdate::prompt_cached_update_if_available())?;
+        smolscale::block_on(autoupdate::prompt_cached_update_if_available())?;
         smolscale::spawn(autoupdate::download_update_loop()).detach();
     }
 
