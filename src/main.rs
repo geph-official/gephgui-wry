@@ -40,8 +40,12 @@ fn main() -> anyhow::Result<()> {
         smol::future::block_on(client.wait_until_dead())?;
         return Ok(());
     }
-    #[cfg(not(target_os = "linux"))]
-    smolscale::spawn(autoupdate::check_update_loop()).detach();
+
+    // DO NOT run the autoupdate logic on flatpak, but otherwise it's good
+    if std::env::var("FLATPAK_ID").is_err() {
+        smol::future::block_on(autoupdate::prompt_cached_update_if_available())?;
+        smolscale::spawn(autoupdate::download_update_loop()).detach();
+    }
 
     // Start a simple HTTP server in a separate thread
     std::thread::spawn(|| {
