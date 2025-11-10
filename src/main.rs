@@ -108,14 +108,13 @@ fn main() -> anyhow::Result<()> {
         menu?.init_for_nsapp();
     }
 
-    let initjs = include_str!("init.js").to_string();
-    #[cfg(target_os = "macos")]
-    // horrifying HACK
-    let initjs = initjs.replace("supports_vpn_conf: true", "supports_vpn_conf: false");
-
-    #[cfg(target_os = "linux")]
-    // horrifying HACK
-    let initjs = initjs.replace("supports_vpn_conf: true", "supports_vpn_conf: false");
+    let mut initjs = include_str!("init.js").to_string();
+    // Disable VPN configuration UI on macOS and Flatpak Linux builds.
+    if cfg!(target_os = "macos")
+        || (cfg!(target_os = "linux") && std::env::var("FLATPAK_ID").is_ok())
+    {
+        initjs.push_str("\nwindow.NATIVE_GATE.supports_vpn_conf = false;");
+    }
 
     let mut wctx = WebContext::new(dirs::config_dir());
     let builder = WebViewBuilder::with_web_context(&mut wctx)
