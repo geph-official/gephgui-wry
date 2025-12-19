@@ -91,6 +91,22 @@ trait IpcProtocol {
         Ok(resp.result.unwrap_or_default())
     }
 
+    /// Generic broker RPC helper that forwards to the client's broker.
+    async fn broker_rpc(
+        &self,
+        method: String,
+        params: Vec<serde_json::Value>,
+    ) -> Result<serde_json::Value, String> {
+        self.daemon_rpc(
+            "broker_rpc".to_string(),
+            vec![
+                serde_json::Value::String(method),
+                serde_json::Value::Array(params),
+            ],
+        )
+        .await
+    }
+
     /// Returns info for basic plan
     async fn get_basic_info(&self, secret: String) -> Result<serde_json::Value, String> {
         let limit = self.daemon_rpc("basic_mb_limit".into(), vec![]).await?;
@@ -280,6 +296,7 @@ pub struct DaemonArgs {
     pub global_vpn: bool,
     pub listen_all: bool,
     pub proxy_autoconf: bool,
+    pub allow_direct: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

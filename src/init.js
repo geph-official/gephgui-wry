@@ -20,13 +20,6 @@ document.addEventListener(
 
 window.open = (url) => jsonrpc_call("open_browser", url);
 
-function convertRemToPixels(rem) {
-  return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
-}
-
-let running = false;
-let connected = false;
-
 const hardcodedProps = {
   supports_app_whitelist: false,
   supports_prc_whitelist: true,
@@ -52,6 +45,7 @@ window["NATIVE_GATE"] = new Proxy(hardcodedProps, {
     return (...args) => jsonrpc_call(propKey, ...args);
   },
 });
+window.dispatchEvent(new Event("native_gate_ready"));
 
 let rpc_count = 0;
 

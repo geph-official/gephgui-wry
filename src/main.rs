@@ -31,6 +31,12 @@ const WINDOW_WIDTH: i32 = 400;
 const WINDOW_HEIGHT: i32 = 720;
 
 fn main() -> anyhow::Result<()> {
+    unsafe {
+        std::env::remove_var("http_proxy");
+        std::env::remove_var("https_proxy");
+        std::env::remove_var("HTTP_PROXY");
+        std::env::remove_var("HTTPS_PROXY");
+    }
     // see whether this is a subprocess that simulates "geph5-client --config ..."
     let args = std::env::args().collect::<Vec<_>>();
     if let Some("--config") = args.get(1).map(|s| s.as_str()) {

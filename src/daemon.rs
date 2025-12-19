@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::Context;
 use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, io::BufReader};
-use geph5_client::{BridgeMode, BrokerKeys, BrokerSource};
+use geph5_client::{BrokerKeys, BrokerSource};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
 use oneshot::Receiver as OneshotReceiver;
@@ -225,11 +225,9 @@ fn default_config() -> geph5_client::Config {
         http_proxy_listen: Some(HTTP_ADDR),
         control_listen: Some(CONTROL_ADDR),
         exit_constraint: geph5_client::ExitConstraint::Auto,
-        bridge_mode: BridgeMode::Auto,
         cache: None,
         broker: Some(BrokerSource::PriorityRace(
             vec![
-                // (0, BrokerSource::Direct("http://127.0.0.1:4000".to_owned())),
                 (
                     0,
                     BrokerSource::Fronted {
@@ -239,27 +237,19 @@ fn default_config() -> geph5_client::Config {
                     },
                 ),
                 (
-                    500,
-                    BrokerSource::Fronted {
-                        front: "https://www.vuejs.org/".into(),
-                        host: "svitania-naidallszei-2.netlify.app".into(),
-                        override_dns: Some(vec!["75.2.60.5:443".parse().unwrap()])
-                    },
-                ),
-                (
-                    500,
-                    BrokerSource::Fronted {
-                        front: "https://www.vuejs.org/".into(),
-                        host: "svitania-naidallszei-3.netlify.app".into(),
-                        override_dns: Some(vec!["75.2.60.5:443".parse().unwrap()])
-                    },
-                ),
-                (
-                    1500,
+                    300,
                     BrokerSource::AwsLambda {
                         function_name: "geph-lambda-bouncer".into(),
                         region: "us-east-1".into(),
                         obfs_key: "855MJGAMB58MCPJBB97NADJ36D64WM2T:C4TN2M1H68VNMRVCCH57GDV2C5VN6V3RB8QMWP235D0P4RT2ACV7GVTRCHX3EC37".into()
+                    },
+                ),
+                (
+                    1500,
+                    BrokerSource::Fronted {
+                        front: "https://www.vuejs.org/".into(),
+                        host: "svitania-naidallszei-2.netlify.app".into(),
+                        override_dns: Some(vec!["75.2.60.5:443".parse().unwrap()])
                     },
                 ),
             ]
@@ -282,6 +272,8 @@ fn default_config() -> geph5_client::Config {
         task_limit: None,
         vpn_fd: None,
         pac_listen: Some(PAC_ADDR),
+        port_forward: vec![],
+        allow_direct: false,
     }
 }
 
@@ -311,6 +303,7 @@ fn running_cfg(args: DaemonArgs) -> geph5_client::Config {
     };
 
     cfg.sess_metadata = args.metadata;
+    cfg.allow_direct = args.allow_direct;
 
     cfg
 }
