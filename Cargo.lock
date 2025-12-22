@@ -239,7 +239,7 @@ version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c2886ab563af5038f79ec016dd7b87947ed138b794e8dd64992962c9cca0411"
 dependencies = [
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "futures-io",
 ]
 
@@ -294,7 +294,7 @@ version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8034a681df4aed8b8edbd7fbe472401ecf009251c8b40556b304567052e294c5"
 dependencies = [
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "blocking",
  "futures-lite 2.6.1",
 ]
@@ -308,7 +308,7 @@ dependencies = [
  "async-channel 2.5.0",
  "async-executor",
  "async-io 2.6.0",
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "blocking",
  "futures-lite 2.6.1",
  "once_cell",
@@ -387,9 +387,9 @@ dependencies = [
 
 [[package]]
 name = "async-lock"
-version = "3.4.1"
+version = "3.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fd03604047cee9b6ce9de9f70c6cd540a0520c813cbd49bae61f33ab80ed1dc"
+checksum = "290f7f2596bd5b78a9fec8088ccd89180d7f9f55b94b0576823bbbdc72ee8311"
 dependencies = [
  "event-listener 5.4.1",
  "event-listener-strategy",
@@ -455,7 +455,7 @@ checksum = "fc50921ec0055cdd8a16de48773bfeec5c972598674347252c0399676be7da75"
 dependencies = [
  "async-channel 2.5.0",
  "async-io 2.6.0",
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "async-signal",
  "async-task",
  "blocking",
@@ -483,7 +483,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43c070bbf59cd3570b6b2dd54cd772527c7c3620fce8be898406dd3ed6adc64c"
 dependencies = [
  "async-io 2.6.0",
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "atomic-waker",
  "cfg-if",
  "futures-core",
@@ -931,7 +931,7 @@ dependencies = [
  "http-body 0.4.6",
  "http-body 1.0.1",
  "http-body-util",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "num-integer",
  "pin-project-lite 0.2.16",
  "pin-utils",
@@ -1084,7 +1084,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "730c6814c82af047b85a3edc88a3ed0129c6046a6488188ccdf560384643e48f"
 dependencies = [
  "derive-new",
- "derive_more 2.1.0",
+ "derive_more 2.0.1",
  "digest 0.10.7",
  "hmac-sha256",
  "hmac-sha512",
@@ -1521,9 +1521,9 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "convert_case"
-version = "0.10.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
+checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1990,23 +1990,22 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "2.1.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10b768e943bed7bf2cab53df09f4bc34bfd217cdb57d971e769874c9a6710618"
+checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
 dependencies = [
  "derive_more-impl",
 ]
 
 [[package]]
 name = "derive_more-impl"
-version = "2.1.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d286bfdaf75e988b4a78e013ecd79c581e06399ab53fbacd2d916c2f904f30b"
+checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
- "convert_case 0.10.0",
+ "convert_case 0.7.1",
  "proc-macro2",
  "quote",
- "rustc_version",
  "syn 2.0.111",
  "unicode-xid",
 ]
@@ -2868,6 +2867,8 @@ dependencies = [
 [[package]]
 name = "geph5-broker-protocol"
 version = "0.2.89"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00863a328e26d2837d903146c6763957819611439f143d612abac42ebbfa7f3c"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2878,13 +2879,13 @@ dependencies = [
  "isocountry",
  "language-tags",
  "melpow",
- "mizaru2 0.2.15",
+ "mizaru2",
  "nanorpc",
  "olpc-cjson",
  "serde",
  "serde_json",
  "serde_with 3.16.1",
- "sillad-meeklike 0.1.1",
+ "sillad-meeklike",
  "stdcode",
  "thiserror 1.0.69",
  "tracing",
@@ -2892,9 +2893,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-client"
-version = "0.2.88"
+version = "0.2.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c51e8334989c03ab3bbd141af38524f030e59ded5377bc27419dce7438fb7e3d"
+checksum = "5b576bef52559cc24c2aff8366ca488c5858467f8dfc87fe287faa85217ceb56"
 dependencies = [
  "anyctx",
  "anyhow",
@@ -2924,6 +2925,7 @@ dependencies = [
  "crossbeam-queue",
  "ctrlc",
  "dashmap 6.1.0",
+ "derive_more 2.0.1",
  "dirs 5.0.1",
  "ed25519-dalek",
  "elevated-command",
@@ -2946,7 +2948,7 @@ dependencies = [
  "kanal",
  "libc",
  "minisign-verify",
- "mizaru2 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mizaru2",
  "moka",
  "nanorpc",
  "nanorpc-sillad",
@@ -2967,10 +2969,10 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "sillad-conntest",
  "sillad-hex",
- "sillad-meeklike 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad-meeklike",
  "sillad-native-tls",
  "sillad-sosistab3",
  "simple-dns",
@@ -3015,8 +3017,8 @@ dependencies = [
  "pin-project",
  "serde",
  "serde_json",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "sillad-meeklike 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
+ "sillad-meeklike",
  "smallvec",
  "smolscale",
  "socksv5",
@@ -3035,6 +3037,7 @@ dependencies = [
  "async-trait",
  "base32 0.5.1",
  "bincode",
+ "derive_more 2.0.1",
  "dirs 4.0.0",
  "embed-resource",
  "flume 0.10.14",
@@ -3448,7 +3451,7 @@ checksum = "601cbb57e577e2f5ef5be8e7b83f0f63994f25aa94d673e54a92d5c516d101f1"
 dependencies = [
  "bytes",
  "fnv",
- "itoa 1.0.15",
+ "itoa 1.0.16",
 ]
 
 [[package]]
@@ -3458,7 +3461,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3ba2a386d7f85a81f119ad7498ebe444d2e22c2af0b86b069416ace48b3311a"
 dependencies = [
  "bytes",
- "itoa 1.0.15",
+ "itoa 1.0.16",
 ]
 
 [[package]]
@@ -3522,7 +3525,7 @@ dependencies = [
  "http-body 0.4.6",
  "httparse",
  "httpdate",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "pin-project-lite 0.2.16",
  "socket2 0.5.10",
  "tokio",
@@ -3545,7 +3548,7 @@ dependencies = [
  "http-body 1.0.1",
  "httparse",
  "httpdate",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "pin-project-lite 0.2.16",
  "pin-utils",
  "smallvec",
@@ -3939,9 +3942,9 @@ checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 
 [[package]]
 name = "itoa"
-version = "1.0.15"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
+checksum = "7ee5b5339afb4c41626dde77b7a611bd4f2c202b897852b4bcf5d03eddc61010"
 
 [[package]]
 name = "javascriptcore-rs"
@@ -4349,20 +4352,6 @@ dependencies = [
 [[package]]
 name = "mizaru2"
 version = "0.2.15"
-dependencies = [
- "blake3",
- "blind-rsa-signatures",
- "hex",
- "rand 0.8.5",
- "rayon",
- "serde",
- "stdcode",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "mizaru2"
-version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c46859ff3b2f98c1dc77bf89abcdcc2750371efc07ef61b06190925d2459750d"
 dependencies = [
@@ -4378,11 +4367,11 @@ dependencies = [
 
 [[package]]
 name = "moka"
-version = "0.12.11"
+version = "0.12.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8261cd88c312e0004c1d51baad2980c66528dfdb2bee62003e643a4d8f86b077"
+checksum = "a3dec6bd31b08944e08b58fd99373893a6c17054d6f3ea5006cc894f4f4eee2a"
 dependencies = [
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "crossbeam-channel",
  "crossbeam-epoch",
  "crossbeam-utils",
@@ -4391,7 +4380,6 @@ dependencies = [
  "futures-util",
  "parking_lot 0.12.5",
  "portable-atomic",
- "rustc_version",
  "smallvec",
  "tagptr",
  "uuid",
@@ -4466,7 +4454,7 @@ dependencies = [
  "futures-util",
  "nanorpc",
  "serde_json",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "thiserror 1.0.69",
 ]
 
@@ -5279,7 +5267,7 @@ dependencies = [
  "async-event 0.2.1",
  "async-io 2.6.0",
  "async-io-bufpool 0.2.0",
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "async-task",
  "async_io_stream",
  "atomic_float",
@@ -5300,7 +5288,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "serde_json",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "smol-timeout2",
  "smolscale",
  "tachyonix",
@@ -5511,9 +5499,9 @@ dependencies = [
 
 [[package]]
 name = "portable-atomic"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
+checksum = "f59e70c4aef1e55797c2e8fd94a4f2a973fc972cfde0e0b05f683667b0cd39dd"
 
 [[package]]
 name = "potential_utf"
@@ -5637,9 +5625,9 @@ dependencies = [
 
 [[package]]
 name = "psl"
-version = "2.1.170"
+version = "2.1.173"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e47a64c20c17a6cb97a80d07c4271105a5dcb4606696b54e7a185ef7b724dadd"
+checksum = "c1f92451a57d4ac86539041234be4c839d381e536a43c816f7b8f5b6139a74dd"
 dependencies = [
  "psl-types",
 ]
@@ -5985,9 +5973,9 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "reqwest"
-version = "0.12.26"
+version = "0.12.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b4c14b2d9afca6a60277086b0cc6a6ae0b568f6f7916c943a8cdc79f8be240f"
+checksum = "8e893f6bece5953520ddbb3f8f46f3ef36dd1fef4ee9b087c4b4a725fd5d10e4"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -6317,9 +6305,9 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "ryu"
-version = "1.0.20"
+version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
+checksum = "62049b2877bf12821e8f9ad256ee38fdc31db7387ec2d3b3f403024de2034aea"
 
 [[package]]
 name = "same-file"
@@ -6488,11 +6476,11 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.145"
+version = "1.0.146"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
+checksum = "217ca874ae0207aac254aa02c957ded05585a90892cc8d87f9e5fa49669dadd8"
 dependencies = [
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "memchr",
  "ryu",
  "serde",
@@ -6526,7 +6514,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
 dependencies = [
  "form_urlencoded",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "ryu",
  "serde",
 ]
@@ -6591,7 +6579,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
 dependencies = [
  "indexmap 2.12.1",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "ryu",
  "serde",
  "unsafe-libyaml",
@@ -6679,23 +6667,6 @@ dependencies = [
 [[package]]
 name = "sillad"
 version = "0.2.6"
-dependencies = [
- "anyhow",
- "async-io 2.6.0",
- "async-trait",
- "futures-concurrency",
- "futures-lite 2.6.1",
- "futures-util",
- "libc",
- "pin-project",
- "rand 0.8.5",
- "smol-timeout2",
- "tracing",
-]
-
-[[package]]
-name = "sillad"
-version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7488ba2d514faebbc82642eb2e24ecd8194b1a5ce8c94f78e841c8ee577cf7f1"
 dependencies = [
@@ -6724,7 +6695,7 @@ dependencies = [
  "futures-lite 2.6.1",
  "futures-util",
  "rand 0.9.2",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "smolscale",
  "tachyonix",
  "tracing",
@@ -6740,43 +6711,7 @@ dependencies = [
  "futures-util",
  "hex",
  "pin-project",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sillad-meeklike"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "async-channel 1.9.0",
- "async-compat",
- "async-io 2.6.0",
- "async-task",
- "async-trait",
- "base64 0.22.1",
- "bipe",
- "blake3",
- "bytes",
- "chacha20poly1305",
- "dashmap 5.5.3",
- "event-listener 5.4.1",
- "futures-lite 2.6.1",
- "futures-util",
- "hex",
- "http-body-util",
- "hyper 1.8.1",
- "hyper-util",
- "parking_lot 0.12.5",
- "pin-project",
- "rand 0.8.5",
- "scopeguard",
- "serde",
- "sillad 0.2.6",
- "smol-timeout2",
- "smolscale",
- "stdcode",
- "tracing",
- "virta",
+ "sillad",
 ]
 
 [[package]]
@@ -6809,7 +6744,7 @@ dependencies = [
  "rand 0.8.5",
  "scopeguard",
  "serde",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "smol-timeout2",
  "smolscale",
  "stdcode",
@@ -6828,7 +6763,7 @@ dependencies = [
  "async-trait",
  "futures-lite 2.6.1",
  "native-tls",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "smolscale",
  "tachyonix",
  "tracing",
@@ -6857,7 +6792,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sillad 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad",
  "smallvec",
  "smolscale",
  "tachyonix",
@@ -6943,7 +6878,7 @@ dependencies = [
  "async-executor",
  "async-fs 2.2.0",
  "async-io 2.6.0",
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "async-net 2.0.0",
  "async-process 2.5.0",
  "blocking",
@@ -7242,7 +7177,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "log",
  "md-5",
  "memchr",
@@ -7282,7 +7217,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "home",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "log",
  "md-5",
  "memchr",
@@ -7656,7 +7591,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91e7d9e3bb61134e77bde20dd4825b97c010155709965fedf0f49bb138e52a9d"
 dependencies = [
  "deranged",
- "itoa 1.0.15",
+ "itoa 1.0.16",
  "num-conv",
  "powerfmt",
  "serde",
@@ -9426,7 +9361,7 @@ dependencies = [
  "async-executor",
  "async-fs 2.2.0",
  "async-io 2.6.0",
- "async-lock 3.4.1",
+ "async-lock 3.4.2",
  "async-process 2.5.0",
  "async-recursion",
  "async-task",
@@ -9595,7 +9530,3 @@ dependencies = [
  "quote",
  "syn 2.0.111",
 ]
-
-[[patch.unused]]
-name = "geph5-client"
-version = "0.2.90"
