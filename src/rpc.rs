@@ -76,6 +76,7 @@ trait IpcProtocol {
         method: String,
         args: Vec<serde_json::Value>,
     ) -> Result<serde_json::Value, String> {
+        tracing::debug!(method, args = debug(&args), "JS calling daemon");
         let jrpc = JrpcRequest {
             jsonrpc: "2.0".into(),
             method,
