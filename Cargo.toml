@@ -16,26 +16,26 @@ license = "MPL-2.0"
 # tray=["tao/tray", "wry/tray"]
 
 [dependencies]
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.20", features = ["json"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["json"] }
 smolscale = "0.4"
-anyhow = "1.0.100"
+anyhow = "1.0.102"
 mime-sniffer = "0.1.3"
 tap = "1.0.1"
 mime_guess = "2.0.5"
-reqwest = { version = "0.12.24", default-features = false, features = [
+reqwest = { version = "0.12.28", default-features = false, features = [
     "rustls-tls-webpki-roots",
 ] }
-serde_json = "1.0.145"
+serde_json = "1.0.149"
 serde = { version = "1.0.228", features = ["derive"] }
-once_cell = "1.21.3"
+once_cell = "1.21.4"
 parking_lot = "0.11.2"
-slab = "0.4.11"
+slab = "0.4.12"
 which = "4.4.2"
 runas = "0.2.1"
 smol = "2"
 dirs = "4.0.0"
-tempfile = "3.23.0"
+tempfile = "3.27.0"
 png = "0.17.16"
 # native-dialog = "0.5.5"
 
@@ -45,9 +45,9 @@ webbrowser = "0.5.5"
 
 oneshot = "0.1"
 
-isahc = "1.7.2"
+isahc = "1.8.1"
 serde_yaml = "0.9.34"
-semver = "1.0.27"
+semver = "1.0.28"
 smol-timeout2 = "0.6.1"
 rand = "0.8.5"
 native-dialog = "0.5"
@@ -60,19 +60,19 @@ rfd = { version = "=0.15.0", default-features = false, features = [
     "async-std",
 ] }
 async-trait = "0.1.89"
-thiserror = "2.0.17"
+thiserror = "2.0.18"
 infer = "0.19.0"
-geph5-client = { version = "0.2.90", features = ["windivert"] }
+geph5-client = { version = "0.2.94", features = ["windivert"] }
 base32 = "0.5.1"
-geph5-broker-protocol = "0.2.85"
-futures-util = { version = "0.3.31", features = ["io"] }
+geph5-broker-protocol = "0.2.90"
+futures-util = { version = "0.3.32", features = ["io"] }
 isocountry = "0.3.2"
-hmac-sha256 = "1.1.12"
+hmac-sha256 = "1.1.14"
 hex = "0.4.3"
-minisign-verify = "0.2.4"
+minisign-verify = "0.2.5"
 sys-locale = "0.3.2"
 tiny_http = "0.12.0"
-geph5-misc-rpc = "0.2.85"
+geph5-misc-rpc = "0.2.90"
 derive_more = "=2.0.1"
 
 [target.'cfg(windows)'.dependencies]
@@ -82,7 +82,7 @@ is_elevated = "0.1.2"
 winres = "0.1.12"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-muda = "0.17.1"
+muda = "0.17.2"
 
 [build-dependencies]
 embed-resource = "2.5.2"
