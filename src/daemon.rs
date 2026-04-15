@@ -8,7 +8,6 @@ use std::{
 
 use anyhow::Context;
 use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, io::BufReader};
-use geph5_client::{BrokerKeys, BrokerSource};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
 use oneshot::Receiver as OneshotReceiver;
@@ -27,6 +26,8 @@ use crate::{
     pac::{configure_proxy, deconfigure_proxy},
     rpc::DaemonArgs,
 };
+
+const DEFAULT_CONFIG_YAML: &str = include_str!("default-config.yaml");
 
 const CONTROL_ADDR: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12222);
@@ -219,62 +220,14 @@ async fn daemon_rpc_direct(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
 }
 
 fn default_config() -> geph5_client::Config {
-    geph5_client::Config {
-        // These fields are the base defaults:
-        socks5_listen: Some(SOCKS5_ADDR),
-        http_proxy_listen: Some(HTTP_ADDR),
-        control_listen: Some(CONTROL_ADDR),
-        exit_constraint: geph5_client::ExitConstraint::Auto,
-        cache: None,
-        broker: Some(BrokerSource::PriorityRace(
-            vec![
-                (
-                    0,
-                    BrokerSource::Fronted {
-                        front: "https://www.cdn77.com/".into(),
-                        host: "1826209743.rsc.cdn77.org".into(),
-                        override_dns: None,
-                    },
-                ),
-                (
-                    300,
-                    BrokerSource::AwsLambda {
-                        function_name: "geph-lambda-bouncer".into(),
-                        region: "us-east-1".into(),
-                        obfs_key: "855MJGAMB58MCPJBB97NADJ36D64WM2T:C4TN2M1H68VNMRVCCH57GDV2C5VN6V3RB8QMWP235D0P4RT2ACV7GVTRCHX3EC37".into()
-                    },
-                ),
-                (
-                    1500,
-                    BrokerSource::Fronted {
-                        front: "https://www.vuejs.org/".into(),
-                        host: "svitania-naidallszei-2.netlify.app".into(),
-                        override_dns: Some(vec!["75.2.60.5:443".parse().unwrap()])
-                    },
-                ),
-            ]
-            .into_iter()
-            .collect(),
-        )),
-        broker_keys: Some(BrokerKeys {
-            master: "88c1d2d4197bed815b01a22cadfc6c35aa246dddb553682037a118aebfaa3954".into(),
-            mizaru_free: "0558216cbab7a9c46f298f4c26e171add9af87d0694988b8a8fe52ee932aa754".into(),
-            mizaru_plus: "cf6f58868c6d9459b3a63bc2bd86165631b3e916bad7f62b578cd9614e0bcb3b".into(),
-            mizaru_bw: "3082010a0282010100d0ae53a794ea37bf2e100cb3a872177ec6c11e8375fdcbf92960ce0293465674eb1426a1841b7622a58979a5ff3f8aa2301a621545e9b90bb39d1a6bfda19d6ca1aae74a3192ddfd2b9558eb652c3c2c22f42bdde272852fb67d93cae5846213512c474bf799844aee019bf718f6fa64223be06364459fc8dec66796b141d450d730c4fffe1cac7df8f05591560afa44bcf274f6c0e2303b39c21ab09d19b459ee594512b8341f3d407c026e2509f42c6d89f82f6a3a36fd5c05ad423cd99ad39089403eb9122ea60ef6648afff65438e8e26ce41fa55b9b18741965c77a627bae947bd38fc345e9adab42d6c458f6e194e4232cfd3f04924d5a5e932fe769610203010001".into()
-        }),
-        // Values that can be overridden by `args`:
-        vpn: false,
-        spoof_dns: false,
-        passthrough_china: false,
-        dry_run: false,
-        credentials: geph5_broker_protocol::Credential::Secret(String::new()),
-        sess_metadata: Default::default(),
-        task_limit: None,
-        vpn_fd: None,
-        pac_listen: Some(PAC_ADDR),
-        port_forward: vec![],
-        allow_direct: false,
-    }
+    static DEFAULT_CONFIG: LazyLock<geph5_client::Config> = LazyLock::new(|| {
+        let value: serde_json::Value = serde_yaml::from_str(DEFAULT_CONFIG_YAML)
+            .expect("default-config.yaml must deserialize into serde_json::Value");
+        serde_json::from_value(value)
+            .expect("default-config.yaml must deserialize into geph5_client::Config")
+    });
+
+    DEFAULT_CONFIG.clone()
 }
 
 fn running_cfg(args: DaemonArgs) -> geph5_client::Config {
