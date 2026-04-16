@@ -62,7 +62,7 @@ rfd = { version = "=0.15.0", default-features = false, features = [
 async-trait = "0.1.89"
 thiserror = "2.0.18"
 infer = "0.19.0"
-geph5-client = { version = "0.2.96", features = ["windivert"] }
+geph5-client = { version = "0.2.96", features = ["windivert", "aws_lambda"] }
 base32 = "0.5.1"
 geph5-broker-protocol = "0.2.90"
 futures-util = { version = "0.3.32", features = ["io"] }
