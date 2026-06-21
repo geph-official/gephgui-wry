@@ -1,208 +1,41 @@
+//! Talks to the privileged `geph daemon` (the geph5-client-cli supervisor) over
+//! its loopback control protocol, instead of spawning geph5-client ourselves.
+//!
+//! The daemon owns the engine lifecycle: it always keeps a child geph5-client
+//! running (a dry-run instance while disconnected, a real tunnel while
+//! connected), so engine/broker queries forwarded through `daemon_rpc` work
+//! whether or not we're connected. We only translate the GUI's lifecycle calls
+//! (`start_daemon` / `stop_daemon` / `restart_daemon`) into the daemon's
+//! `GephCtl` methods, and forward everything else through `daemon_rpc`.
+
 use std::{
-    io::{Read, Write},
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    process::Command,
-    sync::LazyLock,
+    net::{Ipv4Addr, SocketAddr},
     time::Duration,
 };
 
 use anyhow::Context;
 use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, io::BufReader};
 use isocountry::CountryCode;
-use nanorpc::{JrpcId, JrpcRequest, JrpcResponse, RpcTransport};
-use oneshot::Receiver as OneshotReceiver;
-use oneshot::channel as oneshot_channel;
-use smol::future::FutureExt as SmolFutureExt;
+use nanorpc::{JrpcId, JrpcRequest, JrpcResponse};
+use serde_json::{Value, json};
 use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
-use std::process::Stdio;
-use tap::Tap;
-use tempfile::NamedTempFile;
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
+use crate::rpc::DaemonArgs;
 
-use crate::{
-    pac::{configure_proxy, deconfigure_proxy},
-    rpc::DaemonArgs,
-};
+/// The `geph daemon` control endpoint (GephCtlProtocol).
+const GEPH_CTL_ADDR: SocketAddr =
+    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 28080);
 
-const DEFAULT_CONFIG_YAML: &str = include_str!("default-config.yaml");
-
-const CONTROL_ADDR: SocketAddr =
-    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12222);
-
-pub const PAC_ADDR: SocketAddr =
-    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12223);
-
-const SOCKS5_ADDR: SocketAddr =
-    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9909);
-
-pub const HTTP_ADDR: SocketAddr =
-    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9910);
-
-pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    if args.global_vpn {
-        anyhow::bail!("cannot restart in VPN mode")
-    }
-    stop_daemon_inner().await?;
-    let _ = start_daemon_inner(args)?;
-    Ok(())
-}
-
-pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    if args.proxy_autoconf {
-        configure_proxy()?;
-    }
-    let crash_rx = start_daemon_inner(args)?;
-    let start_fut = async {
-        wait_daemon_start()
-            .timeout(Duration::from_secs(30))
-            .await
-            .context("daemon did not start in 30")?;
-        Ok::<(), anyhow::Error>(())
-    };
-    let crash_fut = async {
-        match crash_rx.await {
-            Ok(stderr) => {
-                anyhow::bail!("daemon exited before becoming reachable:\n{}", stderr)
-            }
-            Err(_) => {
-                anyhow::bail!("daemon exited before becoming reachable")
-            }
-        }
-    };
-    start_fut.race(crash_fut).await?;
-    smol::Timer::after(Duration::from_millis(500)).await;
-    Ok(())
-}
-
-fn start_daemon_inner(args: DaemonArgs) -> anyhow::Result<OneshotReceiver<String>> {
-    let cfg = running_cfg(args);
-
-    let mut tfile = NamedTempFile::with_suffix(".yaml")?;
-    let val = serde_json::to_value(&cfg)?;
-
-    tfile.write_all(serde_yaml::to_string(&val)?.as_bytes())?;
-    tfile.flush()?;
-    let (_, path) = tfile.keep()?;
-
-    let (sender, receiver) = oneshot_channel::<String>();
-
-    if cfg.vpn {
-        #[cfg(target_os = "linux")]
-        {
-            let exec_path = std::env::var("APPIMAGE").unwrap_or_else(|_| {
-                std::env::current_exe()
-                    .expect("could not get current_exe")
-                    .display()
-                    .to_string()
-            });
-
-            let mut cmd = std::process::Command::new("pkexec");
-            cmd.arg(exec_path).arg("--config").arg(path);
-            std::thread::spawn(move || {
-                let _ = cmd.status();
-                let _ = sender.send(String::new());
-            });
-        }
-        #[cfg(target_os = "windows")]
-        {
-            let mut cmd = runas::Command::new(std::env::current_exe().unwrap());
-            cmd.arg("--config").arg(path);
-            cmd.show(false);
-            std::thread::spawn(move || {
-                let _ = cmd.status();
-                let _ = sender.send(String::new());
-            });
-        }
-    } else {
-        let mut cmd = Command::new(std::env::current_exe().unwrap());
-        cmd.arg("--config").arg(path);
-        #[cfg(windows)]
-        cmd.creation_flags(0x08000000);
-        cmd.stderr(Stdio::piped());
-        let mut child = cmd.spawn()?;
-        std::thread::spawn(move || {
-            let mut buf = String::new();
-            if let Some(mut stderr) = child.stderr.take() {
-                stderr.read_to_string(&mut buf).ok();
-            }
-            let _ = child.wait();
-            let _ = sender.send(buf);
-        });
-    }
-
-    Ok(receiver)
-}
-
-async fn wait_daemon_start() {
-    smol::Timer::after(Duration::from_millis(150)).await;
-    while let Err(err) = check_daemon().await {
-        tracing::warn!(err = debug(err), "daemon check result");
-        smol::Timer::after(Duration::from_millis(250)).await;
-    }
-}
-
-async fn check_daemon() -> anyhow::Result<()> {
-    TcpStream::connect(CONTROL_ADDR)
-        .timeout(Duration::from_millis(50))
+/// Low-level: send one `GephCtl` JSON-RPC request to the daemon and read the reply.
+async fn ctl_call(req: JrpcRequest) -> anyhow::Result<JrpcResponse> {
+    let conn = TcpStream::connect(GEPH_CTL_ADDR)
+        .timeout(Duration::from_millis(500))
         .await
-        .context("timeout")??;
-    Ok(())
-}
-
-pub async fn stop_daemon() -> anyhow::Result<()> {
-    let _ = deconfigure_proxy();
-    stop_daemon_inner().await
-}
-
-async fn stop_daemon_inner() -> anyhow::Result<()> {
-    let jrpc = JrpcRequest {
-        jsonrpc: "2.0".into(),
-        method: "stop".into(),
-        params: vec![],
-        id: JrpcId::Number(1),
-    };
-    daemon_rpc(jrpc).await?;
-    smol::Timer::after(Duration::from_millis(1000)).await;
-    Ok(())
-}
-
-pub async fn daemon_running() -> bool {
-    check_daemon().await.is_ok()
-}
-
-/// Either dispatches to a running daemon, or virtually starts a dryrun daemon and runs with it
-pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    match daemon_rpc_tcp(inner.clone())
-        .timeout(Duration::from_secs(3))
-        .await
-    {
-        Some(Ok(resp)) => Ok(resp),
-        Some(Err(err)) => {
-            // tracing::warn!(
-            //     method = debug(&inner.method),
-            //     err = debug(err),
-            //     "error calling TCP, falling back to direct"
-            // );
-            daemon_rpc_direct(inner).await
-        }
-        None => {
-            anyhow::bail!("timed out")
-        }
-    }
-}
-
-async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    let conn = TcpStream::connect(CONTROL_ADDR)
-        .timeout(Duration::from_millis(50))
-        .await
-        .context("timeout")
-        .and_then(|s| Ok(s?))?;
+        .context("timed out connecting to geph daemon")??;
     let (read, mut write) = conn.split();
     write
-        .write_all(format!("{}\n", serde_json::to_string(&inner)?).as_bytes())
+        .write_all(format!("{}\n", serde_json::to_string(&req)?).as_bytes())
         .await?;
     let mut read = BufReader::new(read);
     let mut buf = String::new();
@@ -210,75 +43,120 @@ async fn daemon_rpc_tcp(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
     Ok(serde_json::from_str(&buf)?)
 }
 
-async fn daemon_rpc_direct(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    if inner.method == "stop" {
-        anyhow::bail!("cannot stop now lol");
+/// Call a `GephCtl` method, unwrapping its `Result<_, String>` into the inner value.
+async fn geph_ctl(method: &str, params: Vec<Value>) -> anyhow::Result<Value> {
+    let req = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: method.into(),
+        params,
+        id: JrpcId::Number(1),
+    };
+    let resp = ctl_call(req)
+        .timeout(Duration::from_secs(60))
+        .await
+        .context("geph daemon call timed out")??;
+    if let Some(err) = resp.error {
+        anyhow::bail!("{}", err.message);
     }
-    static DAEMON: LazyLock<geph5_client::Client> =
-        LazyLock::new(|| geph5_client::Client::start(default_config().inert()));
-    DAEMON.control_client().0.call_raw(inner).await
+    Ok(resp.result.unwrap_or(Value::Null))
 }
 
-fn default_config() -> geph5_client::Config {
-    static DEFAULT_CONFIG: LazyLock<geph5_client::Config> = LazyLock::new(|| {
-        let value: serde_json::Value = serde_yaml::from_str(DEFAULT_CONFIG_YAML)
-            .expect("default-config.yaml must deserialize into serde_json::Value");
-        serde_json::from_value(value)
-            .expect("default-config.yaml must deserialize into geph5_client::Config")
-    });
-
-    DEFAULT_CONFIG.clone()
+/// The calling desktop session, so the (root) daemon configures *our* proxy.
+/// This is just identity — uid plus a few env vars; the proxy logic is the
+/// daemon's.
+fn session() -> Value {
+    #[cfg(unix)]
+    {
+        json!({
+            "uid": unsafe { libc::geteuid() },
+            "gid": unsafe { libc::getegid() },
+            "home": std::env::var("HOME").ok(),
+            "dbus_session_bus_address": std::env::var("DBUS_SESSION_BUS_ADDRESS").ok(),
+            "xdg_runtime_dir": std::env::var("XDG_RUNTIME_DIR").ok(),
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        json!({ "uid": 0 })
+    }
 }
 
-fn running_cfg(args: DaemonArgs) -> geph5_client::Config {
-    // Start with the template config:
-    let mut cfg = default_config();
-
-    // Override fields that depend on `args`:
-    cfg.vpn = args.global_vpn;
-    cfg.passthrough_china = args.prc_whitelist;
-    cfg.credentials = geph5_broker_protocol::Credential::Secret(args.secret);
-    if args.listen_all {
-        cfg.socks5_listen =
-            Some(SOCKS5_ADDR.tap_mut(|sa| sa.set_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))));
-        cfg.http_proxy_listen =
-            Some(HTTP_ADDR.tap_mut(|sa| sa.set_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)))));
-    }
-
-    cfg.exit_constraint = match args.exit {
-        crate::rpc::ExitConstraint::Auto => geph5_client::ExitConstraint::Auto,
+/// Translate the GUI's exit selection into a geph `ExitConstraint` JSON value.
+fn exit_constraint_value(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<Value> {
+    let constraint = match exit {
+        crate::rpc::ExitConstraint::Auto => geph5_broker_protocol::ExitConstraint::Auto,
         crate::rpc::ExitConstraint::Manual { city, country } => {
-            geph5_client::ExitConstraint::CountryCity(
-                CountryCode::for_alpha2(&country).unwrap(),
-                city,
+            geph5_broker_protocol::ExitConstraint::CountryCity(
+                CountryCode::for_alpha2(country)
+                    .map_err(|_| anyhow::anyhow!("bad country code {country}"))?,
+                city.clone(),
             )
         }
     };
-
-    cfg.sess_metadata = args.metadata;
-    cfg.allow_direct = args.allow_direct;
-
-    cfg
+    Ok(serde_json::to_value(constraint)?)
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::daemon::default_config;
+/// Push the GUI's `DaemonArgs` into the daemon's settings (secret, exit,
+/// auto-proxy) without yet connecting. Shared by start/restart.
+async fn push_settings(args: &DaemonArgs) -> anyhow::Result<()> {
+    // login persists + validates the secret; harmless if unchanged.
+    geph_ctl("login", vec![json!(args.secret)]).await?;
+    geph_ctl(
+        "set_exit_constraint",
+        vec![exit_constraint_value(&args.exit)?],
+    )
+    .await?;
+    geph_ctl("set_auto_proxy", vec![json!(args.proxy_autoconf), session()]).await?;
+    Ok(())
+}
 
-    #[test]
-    fn test_dump_default_config() {
-        // Get the default configuration
-        let config = default_config();
+pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
+    push_settings(&args).await?;
+    geph_ctl("connect", vec![session()]).await?;
+    Ok(())
+}
 
-        // Convert to JSON and pretty print
-        let json_config =
-            serde_json::to_string_pretty(&config).expect("Failed to serialize config to JSON");
+pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
+    // The daemon is persistent; "restart" is just pushing new settings and
+    // (re)connecting. connect() restarts the child with the new exit.
+    push_settings(&args).await?;
+    geph_ctl("connect", vec![session()]).await?;
+    Ok(())
+}
 
-        // Print the JSON representation for inspection
-        println!("Default config JSON representation:");
-        println!("{}", json_config);
+pub async fn stop_daemon() -> anyhow::Result<()> {
+    geph_ctl("disconnect", vec![session()]).await?;
+    Ok(())
+}
 
-        // Assert that the config can be serialized (this should never fail if the previous step succeeded)
-        assert!(serde_json::to_string(&config).is_ok());
+/// Whether the user currently wants the tunnel up (mirrors the old "is the
+/// daemon process running" semantics, which only existed while connected).
+pub async fn daemon_running() -> bool {
+    match geph_ctl("get_settings", vec![]).await {
+        Ok(v) => v
+            .get("connected")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false),
+        Err(_) => false,
     }
+}
+
+/// Forward a raw engine RPC (`conn_info`, `broker_rpc`, `net_status`,
+/// `stat_history`, `recent_logs`, `start_registration`, …) to the daemon, which
+/// relays it to its always-running child geph5-client. This is what makes
+/// broker/engine calls work whether or not we're connected.
+pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
+    let req = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: "daemon_rpc".into(),
+        params: vec![json!(inner.method), Value::Array(inner.params)],
+        id: inner.id.clone(),
+    };
+    let mut resp = ctl_call(req)
+        .timeout(Duration::from_secs(10))
+        .await
+        .context("daemon_rpc timed out")??;
+    // The daemon's `daemon_rpc` result/error already reflects the inner call.
+    resp.id = inner.id;
+    Ok(resp)
 }

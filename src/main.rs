@@ -5,6 +5,7 @@ use fakefs::FakeFs;
 use mtbus::mt_next;
 
 use rpc::ipc_handle;
+use smol_timeout2::TimeoutExt;
 // #[cfg(feature = "tray")]
 // use tao::system_tray::{SystemTray, SystemTrayBuilder};
 use tao::{
@@ -22,7 +23,6 @@ mod daemon;
 mod fakefs;
 
 mod mtbus;
-mod pac;
 mod rpc;
 
 use wry::{WebContext, WebView, WebViewBuilder};
@@ -37,15 +37,8 @@ fn main() -> anyhow::Result<()> {
         std::env::remove_var("HTTP_PROXY");
         std::env::remove_var("HTTPS_PROXY");
     }
-    // see whether this is a subprocess that simulates "geph5-client --config ..."
-    let args = std::env::args().collect::<Vec<_>>();
-    if let Some("--config") = args.get(1).map(|s| s.as_str()) {
-        let val: serde_json::Value = serde_yaml::from_slice(&std::fs::read(&args[2])?)?;
-        let cfg: geph5_client::Config = serde_json::from_value(val)?;
-        let client = geph5_client::Client::start(cfg);
-        smol::future::block_on(client.wait_until_dead())?;
-        return Ok(());
-    }
+    // The engine no longer runs in-process: a separate privileged `geph daemon`
+    // owns the tunnel, and we talk to it over its control protocol (see daemon.rs).
 
     // DO NOT run the autoupdate logic on flatpak, but otherwise it's good
     if std::env::var("FLATPAK_ID").is_err() {
@@ -160,6 +153,13 @@ fn main() -> anyhow::Result<()> {
                 ..
             } => {
                 println!("The close button was pressed; stopping");
+                // Stop the daemon so its tunmgr (if any) sees the disconnect and
+                // tears down routes/firewall. Even if this fails, the daemon
+                // exiting with the GUI will close the tunmgr socket and trigger
+                // the same teardown.
+                let _ = smol::future::block_on(
+                    daemon::stop_daemon().timeout(std::time::Duration::from_secs(3)),
+                );
                 *control_flow = ControlFlow::Exit
             }
             Event::MainEventsCleared => {
