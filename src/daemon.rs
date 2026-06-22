@@ -107,6 +107,7 @@ async fn push_settings(args: &DaemonArgs) -> anyhow::Result<()> {
     )
     .await?;
     geph_ctl("set_auto_proxy", vec![json!(args.proxy_autoconf), session()]).await?;
+    geph_ctl("set_allow_direct", vec![json!(args.allow_direct)]).await?;
     Ok(())
 }
 
