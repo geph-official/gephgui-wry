@@ -8,28 +8,41 @@
 //! (`start_daemon` / `stop_daemon` / `restart_daemon`) into the daemon's
 //! `GephCtl` methods, and forward everything else through `daemon_rpc`.
 
-use std::{
-    net::{Ipv4Addr, SocketAddr},
-    time::Duration,
-};
+use std::time::Duration;
 
 use anyhow::Context;
 use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, io::BufReader};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse};
 use serde_json::{Value, json};
-use smol::net::TcpStream;
 use smol_timeout2::TimeoutExt;
 
 use crate::rpc::DaemonArgs;
 
-/// The `geph daemon` control endpoint (GephCtlProtocol).
-const GEPH_CTL_ADDR: SocketAddr =
-    SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 28080);
+/// The `geph daemon` control endpoint (GephCtlProtocol). A unix domain socket on
+/// unix (matching the daemon's `daemon_control_path()`); loopback TCP on Windows
+/// (named pipes are the planned replacement there).
+#[cfg(unix)]
+const GEPH_CTL_SOCK: &str = "/var/lib/geph/control.sock";
+#[cfg(not(unix))]
+const GEPH_CTL_ADDR: std::net::SocketAddr = std::net::SocketAddr::new(
+    std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+    28080,
+);
+
+/// Open a fresh connection to the daemon's control endpoint.
+#[cfg(unix)]
+async fn connect_daemon() -> std::io::Result<smol::net::unix::UnixStream> {
+    smol::net::unix::UnixStream::connect(GEPH_CTL_SOCK).await
+}
+#[cfg(not(unix))]
+async fn connect_daemon() -> std::io::Result<smol::net::TcpStream> {
+    smol::net::TcpStream::connect(GEPH_CTL_ADDR).await
+}
 
 /// Low-level: send one `GephCtl` JSON-RPC request to the daemon and read the reply.
 async fn ctl_call(req: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    let conn = TcpStream::connect(GEPH_CTL_ADDR)
+    let conn = connect_daemon()
         .timeout(Duration::from_millis(500))
         .await
         .context("timed out connecting to geph daemon")??;
