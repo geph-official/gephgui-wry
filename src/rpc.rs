@@ -7,7 +7,9 @@ use webbrowser::open_browser;
 
 use crate::{
     WINDOW_HEIGHT, WINDOW_WIDTH,
-    daemon::{daemon_rpc, daemon_running, restart_daemon, start_daemon, stop_daemon},
+    daemon::{
+        daemon_rpc, daemon_running, restart_daemon, set_exit_constraint, start_daemon, stop_daemon,
+    },
     mtbus::mt_enqueue,
 };
 
@@ -63,6 +65,13 @@ trait IpcProtocol {
     /// Restart the daemon with the given arguments.
     async fn restart_daemon(&self, args: DaemonArgs) -> Result<(), String> {
         restart_daemon(args).await.map_err(|s| format!("{:?}", s))
+    }
+
+    /// Switch the exit while connected — triggers a leak-free reconnect in the
+    /// daemon (no traffic escapes during the switch). If disconnected, just
+    /// persists the new exit for the next connect.
+    async fn set_exit_constraint(&self, exit: ExitConstraint) -> Result<(), String> {
+        set_exit_constraint(&exit).await.map_err(|s| format!("{:?}", s))
     }
 
     /// Returns whether the daemon is running.

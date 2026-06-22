@@ -130,6 +130,14 @@ pub async fn stop_daemon() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Switch the exit constraint. The daemon persists it and, if currently
+/// connected, reconnects to the new exit WITHOUT a leak window (the kill switch
+/// stays up; only the engine child is restarted).
+pub async fn set_exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<()> {
+    geph_ctl("set_exit_constraint", vec![exit_constraint_value(exit)?]).await?;
+    Ok(())
+}
+
 /// Whether the user currently wants the tunnel up (mirrors the old "is the
 /// daemon process running" semantics, which only existed while connected).
 pub async fn daemon_running() -> bool {
