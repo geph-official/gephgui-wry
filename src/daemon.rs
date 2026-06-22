@@ -20,24 +20,26 @@ use smol_timeout2::TimeoutExt;
 use crate::rpc::DaemonArgs;
 
 /// The `geph daemon` control endpoint (GephCtlProtocol). A unix domain socket on
-/// unix (matching the daemon's `daemon_control_path()`); loopback TCP on Windows
-/// (named pipes are the planned replacement there).
+/// unix (matching the daemon's `daemon_control_path()`); a Windows named pipe on
+/// Windows (matching the daemon's `DAEMON_CONTROL_PIPE`).
 #[cfg(unix)]
 const GEPH_CTL_SOCK: &str = "/var/lib/geph/control.sock";
-#[cfg(not(unix))]
-const GEPH_CTL_ADDR: std::net::SocketAddr = std::net::SocketAddr::new(
-    std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
-    28080,
-);
+#[cfg(windows)]
+const GEPH_CTL_PIPE: &str = r"\\.\pipe\geph-daemon-control";
 
 /// Open a fresh connection to the daemon's control endpoint.
 #[cfg(unix)]
 async fn connect_daemon() -> std::io::Result<smol::net::unix::UnixStream> {
     smol::net::unix::UnixStream::connect(GEPH_CTL_SOCK).await
 }
-#[cfg(not(unix))]
-async fn connect_daemon() -> std::io::Result<smol::net::TcpStream> {
-    smol::net::TcpStream::connect(GEPH_CTL_ADDR).await
+#[cfg(windows)]
+async fn connect_daemon() -> std::io::Result<sillad::windows_pipe::NamedPipe> {
+    use sillad::dialer::Dialer;
+    sillad::windows_pipe::NamedPipeDialer {
+        name: GEPH_CTL_PIPE.to_string(),
+    }
+    .dial()
+    .await
 }
 
 /// Low-level: send one `GephCtl` JSON-RPC request to the daemon and read the reply.

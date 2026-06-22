@@ -56,6 +56,9 @@ geph5-misc-rpc = "0.2.102"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[target.'cfg(windows)'.dependencies]
+sillad = { path = "../geph5/libraries/sillad" }
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.12"
 
