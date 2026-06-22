@@ -23,7 +23,7 @@ use crate::rpc::DaemonArgs;
 /// unix (matching the daemon's `daemon_control_path()`); a Windows named pipe on
 /// Windows (matching the daemon's `DAEMON_CONTROL_PIPE`).
 #[cfg(unix)]
-const GEPH_CTL_SOCK: &str = "/var/lib/geph/control.sock";
+const GEPH_CTL_SOCK: &str = "/run/geph/control.sock";
 #[cfg(windows)]
 const GEPH_CTL_PIPE: &str = r"\\.\pipe\geph-daemon-control";
 
