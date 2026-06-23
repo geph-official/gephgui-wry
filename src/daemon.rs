@@ -1,4 +1,4 @@
-//! Talks to the privileged `geph daemon` (the geph5-client-cli supervisor) over
+//! Talks to the privileged `geph5 daemon` (the geph5-app supervisor) over
 //! its loopback control protocol, instead of spawning geph5-client ourselves.
 //!
 //! The daemon owns the engine lifecycle: it always keeps a child geph5-client
