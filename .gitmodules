@@ -1,3 +1,6 @@
 [submodule "gephgui"]
 	path = gephgui
 	url = https://github.com/geph-official/gephgui.git
+[submodule "pac-cmd"]
+	path = pac-cmd
+	url = https://github.com/getlantern/pac-cmd.git
