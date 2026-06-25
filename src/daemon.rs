@@ -180,7 +180,7 @@ pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
         .await
     {
         Some(Ok(resp)) => Ok(resp),
-        Some(Err(err)) => {
+        Some(Err(_err)) => {
             // tracing::warn!(
             //     method = debug(&inner.method),
             //     err = debug(err),

@@ -32,6 +32,9 @@ const WINDOW_HEIGHT: i32 = 720;
 
 fn main() -> anyhow::Result<()> {
     unsafe {
+        #[cfg(target_os = "linux")]
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
         std::env::remove_var("http_proxy");
         std::env::remove_var("https_proxy");
         std::env::remove_var("HTTP_PROXY");
