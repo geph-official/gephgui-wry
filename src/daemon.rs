@@ -11,7 +11,6 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, io::BufReader};
 use isocountry::CountryCode;
 use nanorpc::{JrpcId, JrpcRequest, JrpcResponse};
 use serde_json::{Value, json};
@@ -27,35 +26,83 @@ const GEPH_CTL_SOCK: &str = "/run/geph/control.sock";
 #[cfg(windows)]
 const GEPH_CTL_PIPE: &str = r"\\.\pipe\geph-daemon-control";
 
-/// Open a fresh connection to the daemon's control endpoint.
-#[cfg(unix)]
-async fn connect_daemon() -> std::io::Result<smol::net::unix::UnixStream> {
-    smol::net::unix::UnixStream::connect(GEPH_CTL_SOCK).await
-}
-#[cfg(windows)]
-async fn connect_daemon() -> std::io::Result<sillad::windows_pipe::NamedPipe> {
-    use sillad::dialer::Dialer;
-    sillad::windows_pipe::NamedPipeDialer {
-        name: GEPH_CTL_PIPE.to_string(),
-    }
-    .dial()
-    .await
-}
-
 /// Low-level: send one `GephCtl` JSON-RPC request to the daemon and read the reply.
 async fn ctl_call(req: JrpcRequest) -> anyhow::Result<JrpcResponse> {
-    let conn = connect_daemon()
+    let line = format!("{}\n", serde_json::to_string(&req)?);
+    let resp = transact(line).await?;
+    Ok(serde_json::from_str(&resp)?)
+}
+
+/// Send one newline-terminated request line to the daemon's control endpoint and
+/// return its one-line reply. The transport is runtime-native: gephgui runs on
+/// smolscale (no tokio reactor), so unix uses a smol unix socket directly, and
+/// Windows does a blocking Win32 named-pipe exchange off-thread via
+/// `smol::unblock` (sillad's pipe is tokio-based and would need a tokio runtime).
+#[cfg(unix)]
+async fn transact(req_line: String) -> anyhow::Result<String> {
+    use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, io::BufReader};
+    let conn = smol::net::unix::UnixStream::connect(GEPH_CTL_SOCK)
         .timeout(Duration::from_millis(500))
         .await
         .context("timed out connecting to geph daemon")??;
     let (read, mut write) = conn.split();
-    write
-        .write_all(format!("{}\n", serde_json::to_string(&req)?).as_bytes())
-        .await?;
+    write.write_all(req_line.as_bytes()).await?;
     let mut read = BufReader::new(read);
     let mut buf = String::new();
     read.read_line(&mut buf).await?;
-    Ok(serde_json::from_str(&buf)?)
+    Ok(buf)
+}
+
+#[cfg(windows)]
+async fn transact(req_line: String) -> anyhow::Result<String> {
+    smol::unblock(move || windows_pipe::exchange(GEPH_CTL_PIPE, &req_line)).await
+}
+
+/// Blocking Win32 named-pipe client. The control protocol is a single
+/// newline-terminated request and reply, and the pipe path opens as an ordinary
+/// duplex `std::fs::File`, so a plain blocking open/write/read is enough — run
+/// off the executor via `smol::unblock`.
+#[cfg(windows)]
+mod windows_pipe {
+    use std::{
+        fs::{File, OpenOptions},
+        io::{BufRead, BufReader, Write},
+        thread,
+        time::{Duration, Instant},
+    };
+
+    /// `ERROR_PIPE_BUSY`: every pipe instance is momentarily in use; retry briefly.
+    const ERROR_PIPE_BUSY: i32 = 231;
+
+    pub fn exchange(pipe: &str, req_line: &str) -> anyhow::Result<String> {
+        let file = open(pipe)?;
+        // `&File` implements both `Write` and `Read`, so one duplex handle carries
+        // the request and the reply.
+        (&file).write_all(req_line.as_bytes())?;
+        (&file).flush()?;
+        let mut reader = BufReader::new(&file);
+        let mut buf = String::new();
+        reader.read_line(&mut buf)?;
+        Ok(buf)
+    }
+
+    fn open(pipe: &str) -> anyhow::Result<File> {
+        let deadline = Instant::now() + Duration::from_millis(2000);
+        loop {
+            match OpenOptions::new().read(true).write(true).open(pipe) {
+                Ok(f) => return Ok(f),
+                Err(e)
+                    if e.raw_os_error() == Some(ERROR_PIPE_BUSY)
+                        && Instant::now() < deadline =>
+                {
+                    thread::sleep(Duration::from_millis(50));
+                }
+                Err(e) => {
+                    return Err(anyhow::Error::new(e).context("connecting to geph daemon pipe"));
+                }
+            }
+        }
+    }
 }
 
 /// Call a `GephCtl` method, unwrapping its `Result<_, String>` into the inner value.
