@@ -5,7 +5,6 @@ use fakefs::FakeFs;
 use mtbus::mt_next;
 
 use rpc::ipc_handle;
-use smol_timeout2::TimeoutExt;
 // #[cfg(feature = "tray")]
 // use tao::system_tray::{SystemTray, SystemTrayBuilder};
 use tao::{
@@ -152,14 +151,12 @@ fn main() -> anyhow::Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                println!("The close button was pressed; stopping");
-                // Stop the daemon so its tunmgr (if any) sees the disconnect and
-                // tears down routes/firewall. Even if this fails, the daemon
-                // exiting with the GUI will close the tunmgr socket and trigger
-                // the same teardown.
-                let _ = smol::future::block_on(
-                    daemon::stop_daemon().timeout(std::time::Duration::from_secs(3)),
-                );
+                println!("The close button was pressed; closing the GUI");
+                // The `geph daemon` is a persistent, privileged process that owns
+                // the tunnel and keeps managing it in the background. Closing the
+                // GUI just detaches from it — we deliberately do NOT disconnect or
+                // tear down the tunnel here. On relaunch the GUI reattaches and
+                // reflects the daemon's current state via `daemon_running()`.
                 *control_flow = ControlFlow::Exit
             }
             Event::MainEventsCleared => {

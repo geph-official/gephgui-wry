@@ -1792,13 +1792,39 @@ dependencies = [
  "isocountry",
  "language-tags",
  "melpow",
- "mizaru2",
+ "mizaru2 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanorpc",
  "olpc-cjson",
  "serde",
  "serde_json",
  "serde_with 3.19.0",
- "sillad-meeklike",
+ "sillad-meeklike 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stdcode",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "geph5-broker-protocol"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64",
+ "blake3",
+ "bytes",
+ "ed25519-dalek",
+ "geph5-stats",
+ "isocountry",
+ "language-tags",
+ "melpow",
+ "mizaru2 0.2.18",
+ "nanorpc",
+ "olpc-cjson",
+ "serde",
+ "serde_json",
+ "serde_with 3.19.0",
+ "sillad-meeklike 0.1.3",
  "stdcode",
  "thiserror 1.0.69",
  "tracing",
@@ -1819,13 +1845,13 @@ dependencies = [
  "chacha20poly1305",
  "ed25519-dalek",
  "futures-util",
- "geph5-broker-protocol",
+ "geph5-broker-protocol 0.2.102",
  "nanorpc",
  "pin-project",
  "serde",
  "serde_json",
- "sillad",
- "sillad-meeklike",
+ "sillad 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad-meeklike 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec",
  "smolscale",
  "socksv5",
@@ -1834,6 +1860,27 @@ dependencies = [
  "tap",
  "thiserror 1.0.69",
  "x25519-dalek",
+]
+
+[[package]]
+name = "geph5-rt"
+version = "0.1.0"
+dependencies = [
+ "async-channel 2.5.0",
+ "bytes",
+ "futures-concurrency",
+ "futures-util",
+ "libc",
+ "pin-project-lite 0.2.17",
+ "rand 0.8.6",
+ "tokio",
+]
+
+[[package]]
+name = "geph5-stats"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -1846,7 +1893,7 @@ dependencies = [
  "embed-resource",
  "flume",
  "futures-util",
- "geph5-broker-protocol",
+ "geph5-broker-protocol 0.3.0",
  "geph5-misc-rpc",
  "hex",
  "hmac-sha256",
@@ -2812,6 +2859,20 @@ dependencies = [
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "mizaru2"
+version = "0.2.18"
+dependencies = [
+ "blake3",
+ "blind-rsa-signatures",
+ "hex",
+ "rand 0.8.6",
+ "rayon",
+ "serde",
+ "stdcode",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4460,6 +4521,23 @@ dependencies = [
 [[package]]
 name = "sillad"
 version = "0.2.10"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures-concurrency",
+ "futures-util",
+ "libc",
+ "pin-project",
+ "rand 0.8.6",
+ "socket2 0.5.10",
+ "tokio",
+ "tracing",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "sillad"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3d09ec45504f7b32f5df33262d2043ce940762374892bce4b38dd3bbb29356e"
 dependencies = [
@@ -4475,6 +4553,38 @@ dependencies = [
  "smol-timeout2",
  "socket2 0.5.10",
  "tracing",
+]
+
+[[package]]
+name = "sillad-meeklike"
+version = "0.1.3"
+dependencies = [
+ "anyhow",
+ "async-channel 2.5.0",
+ "async-trait",
+ "base64",
+ "blake3",
+ "bytes",
+ "chacha20poly1305",
+ "dashmap",
+ "event-listener 5.4.1",
+ "futures-concurrency",
+ "geph5-rt",
+ "hex",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "parking_lot",
+ "pin-project",
+ "rand 0.8.6",
+ "scopeguard",
+ "serde",
+ "sillad 0.2.10",
+ "stdcode",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "virta",
 ]
 
 [[package]]
@@ -4507,7 +4617,7 @@ dependencies = [
  "rand 0.8.6",
  "scopeguard",
  "serde",
- "sillad",
+ "sillad 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "smol-timeout2",
  "smolscale",
  "stdcode",
@@ -5104,6 +5214,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
 dependencies = [
  "rustls",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-util"
+version = "0.7.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ae9cec805b01e8fc3fd2fe289f89149a9b66dd16786abd8b19cfa7b48cb0098"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "pin-project-lite 0.2.17",
  "tokio",
 ]
 
@@ -6754,7 +6878,3 @@ dependencies = [
  "quote",
  "syn 2.0.117",
 ]
-
-[[patch.unused]]
-name = "geph5-broker-protocol"
-version = "0.3.0"
