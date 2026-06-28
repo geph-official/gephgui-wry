@@ -107,10 +107,9 @@ fn main() -> anyhow::Result<()> {
     }
 
     let mut initjs = include_str!("init.js").to_string();
-    // Disable VPN configuration UI on macOS and Flatpak Linux builds.
-    if cfg!(target_os = "macos")
-        || (cfg!(target_os = "linux") && std::env::var("FLATPAK_ID").is_ok())
-    {
+    // Disable the VPN configuration UI only on Flatpak Linux, whose sandbox can't
+    // manage a system tun device. macOS, Windows, and regular Linux support it.
+    if cfg!(target_os = "linux") && std::env::var("FLATPAK_ID").is_ok() {
         initjs.push_str("\nwindow.NATIVE_GATE.supports_vpn_conf = false;");
     }
 
