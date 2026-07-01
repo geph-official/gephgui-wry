@@ -18,7 +18,7 @@ use rfd::MessageDialog;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::daemon::{daemon_rpc, stop_daemon};
+use crate::manager::{daemon_rpc, stop_daemon};
 
 const UPDATE_MEAN_INTERVAL_HOURS: f64 = 6.0;
 const RETRY_DELAY_SECONDS: u64 = 600;
@@ -201,7 +201,7 @@ async fn run_update(version: &str, path: &Path) -> anyhow::Result<()> {
     };
 
     if should_exit {
-        // Stop the daemon
+        // Stop the tunnel
         stop_daemon().await?;
 
         // Exit the application

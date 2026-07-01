@@ -7,8 +7,8 @@ use webbrowser::open_browser;
 
 use crate::{
     WINDOW_HEIGHT, WINDOW_WIDTH,
-    daemon::{
-        daemon_rpc, daemon_running, restart_daemon, set_exit_constraint, start_daemon, stop_daemon,
+    manager::{
+        daemon_rpc, manager_connected, restart_daemon, set_exit_constraint, start_daemon, stop_daemon,
     },
     mtbus::mt_enqueue,
 };
@@ -52,31 +52,31 @@ trait IpcProtocol {
         });
     }
 
-    /// Start the daemon with the given arguments.
+    /// Start the tunnel (via the manager) with the given arguments.
     async fn start_daemon(&self, args: DaemonArgs) -> Result<(), String> {
         start_daemon(args).await.map_err(|s| format!("{:?}", s))
     }
 
-    /// Stop the daemon.
+    /// Stop the tunnel.
     async fn stop_daemon(&self) {
         let _ = stop_daemon().await;
     }
 
-    /// Restart the daemon with the given arguments.
+    /// Restart the tunnel with the given arguments.
     async fn restart_daemon(&self, args: DaemonArgs) -> Result<(), String> {
         restart_daemon(args).await.map_err(|s| format!("{:?}", s))
     }
 
     /// Switch the exit while connected — triggers a leak-free reconnect in the
-    /// daemon (no traffic escapes during the switch). If disconnected, just
+    /// manager (no traffic escapes during the switch). If disconnected, just
     /// persists the new exit for the next connect.
     async fn set_exit_constraint(&self, exit: ExitConstraint) -> Result<(), String> {
         set_exit_constraint(&exit).await.map_err(|s| format!("{:?}", s))
     }
 
-    /// Returns whether the daemon is running.
+    /// Returns whether the tunnel is up.
     async fn is_running(&self) -> bool {
-        daemon_running().await
+        manager_connected().await
     }
 
     /// Generic "daemon_rpc" call.
@@ -85,7 +85,7 @@ trait IpcProtocol {
         method: String,
         args: Vec<serde_json::Value>,
     ) -> Result<serde_json::Value, String> {
-        tracing::debug!(method, args = debug(&args), "JS calling daemon");
+        tracing::debug!(method, args = debug(&args), "JS calling the engine");
         let jrpc = JrpcRequest {
             jsonrpc: "2.0".into(),
             method,
@@ -323,12 +323,12 @@ pub struct DaemonArgs {
     pub prc_whitelist: bool,
     pub exit: ExitConstraint,
     pub global_vpn: bool,
-    /// Local-proxy configuration; `None` means the daemon listens on no ports.
+    /// Local-proxy configuration; `None` means no local proxy ports are bound.
     pub proxy: Option<ProxyArgs>,
     pub allow_direct: bool,
 }
 
-/// Mirrors the JS `ProxyArgs` (and the daemon's `ProxySettings`).
+/// Mirrors the JS `ProxyArgs` (and the manager's `ProxySettings`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyArgs {
     pub autoconf: bool,

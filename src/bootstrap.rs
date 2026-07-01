@@ -1,20 +1,20 @@
-//! Startup bootstrap of the privileged `geph daemon` (Linux only).
+//! Startup bootstrap of the privileged `geph manager` (Linux only).
 //!
-//! The GUI is an unprivileged client of a persistent root daemon (see daemon.rs):
-//! the daemon owns the TUN device, routing, kill-switch, and the control socket at
-//! `/run/geph/control.sock`. A sandboxed Flatpak GUI cannot run that daemon itself,
+//! The GUI is an unprivileged client of a persistent root manager (see manager.rs):
+//! the manager owns the TUN device, routing, kill-switch, and the control socket at
+//! `/run/geph/control.sock`. A sandboxed Flatpak GUI cannot run that manager itself,
 //! and even a native GUI shouldn't assume it's already installed. So, run early in
-//! `main()`, this module makes sure a host daemon is present, current, and answering
+//! `main()`, this module makes sure a host manager is present, current, and answering
 //! before the webview tries to talk to it.
 //!
 //! Logic (all Linux, no-op elsewhere):
-//!   * If the control socket answers — and, on Flatpak, the installed daemon binary
+//!   * If the control socket answers — and, on Flatpak, the installed manager binary
 //!     matches the one we bundle — there's nothing to do.
 //!   * Otherwise we explain via a native (non-HTML) dialog, elevate once with
 //!     `pkexec`, and run the privileged installer:
-//!       - Native: `pkexec geph5 register-daemon` (the `.deb` put `geph5` on PATH).
+//!       - Native: `pkexec geph5 register-manager` (the `.deb` put `geph5` on PATH).
 //!       - Flatpak: stage the bundled static `geph5`/`geph5-client` plus the
-//!         packaging-owned `install-host-daemon.sh` to a host-visible dir and run it
+//!         packaging-owned `install-host-manager.sh` to a host-visible dir and run it
 //!         via `flatpak-spawn --host pkexec`. All install/cleanup *policy* lives in
 //!         that bundled script (owned by gephgui-pkg), not here and not in geph5.
 //!
@@ -29,12 +29,12 @@ use std::time::Duration;
 use anyhow::Context;
 use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
 
-/// Bundled (in-sandbox) locations of the host daemon binaries and packaging assets.
+/// Bundled (in-sandbox) locations of the host manager binaries and packaging assets.
 const APP_GEPH5: &str = "/app/bin/geph5";
 const APP_GEPH5_CLIENT: &str = "/app/bin/geph5-client";
 const APP_LIBEXEC: &str = "/app/libexec/geph";
 
-/// Where the daemon binaries live on the host after installation.
+/// Where the manager binaries live on the host after installation.
 const HOST_GEPH5: &str = "/usr/local/bin/geph5";
 const HOST_GEPH5_CLIENT: &str = "/usr/local/bin/geph5-client";
 
@@ -44,8 +44,8 @@ const STAGED_FILES: &[(&str, &str)] = &[
     (APP_GEPH5, "geph5"),
     (APP_GEPH5_CLIENT, "geph5-client"),
     (
-        "/app/libexec/geph/install-host-daemon.sh",
-        "install-host-daemon.sh",
+        "/app/libexec/geph/install-host-manager.sh",
+        "install-host-manager.sh",
     ),
     (
         "/app/libexec/geph/geph-cleanup.service",
@@ -58,19 +58,19 @@ const STAGED_FILES: &[(&str, &str)] = &[
     ),
 ];
 
-/// Ensure the host daemon is installed, current, and answering. Returns `true` if
+/// Ensure the host manager is installed, current, and answering. Returns `true` if
 /// the GUI should continue starting up, or `false` if it should exit now (the user
 /// quit, or a Flatpak first-run/relaunch is required so the `/run/geph` bind-mount
 /// picks up the freshly-created control socket).
-pub fn ensure_daemon() -> bool {
+pub fn ensure_manager() -> bool {
     let is_flatpak = std::env::var_os("FLATPAK_ID").is_some();
     let was_reachable = reachable();
 
     let needs_install = if !was_reachable {
         true
     } else if is_flatpak {
-        // Reachable, but did a Flatpak update ship a newer daemon than the host copy?
-        flatpak_daemon_stale()
+        // Reachable, but did a Flatpak update ship a newer manager than the host copy?
+        flatpak_manager_stale()
     } else {
         false
     };
@@ -102,7 +102,7 @@ pub fn ensure_daemon() -> bool {
     }
 
     // Native install, or a Flatpak in-place upgrade (the dir was already mounted):
-    // wait briefly for the (re)started daemon to bind its socket, then continue.
+    // wait briefly for the (re)started manager to bind its socket, then continue.
     for _ in 0..40 {
         if reachable() {
             return true;
@@ -113,20 +113,20 @@ pub fn ensure_daemon() -> bool {
         relaunch_dialog();
         return false;
     }
-    // Native: continue anyway; the GUI surfaces its own "can't reach daemon" error.
+    // Native: continue anyway; the GUI surfaces its own "can't reach manager" error.
     true
 }
 
-/// Can we reach the daemon's control socket right now?
+/// Can we reach the manager's control socket right now?
 fn reachable() -> bool {
-    smolscale::block_on(crate::daemon::daemon_reachable())
+    smolscale::block_on(crate::manager::manager_reachable())
 }
 
-/// On Flatpak, is the host-installed daemon a different build than the one we bundle?
+/// On Flatpak, is the host-installed manager a different build than the one we bundle?
 /// Compares content hashes (no version RPC needed). If we can't read our own bundled
 /// binaries we conservatively report "not stale"; if the host copy is missing or
 /// unreadable we report "stale" so it gets (re)installed.
-fn flatpak_daemon_stale() -> bool {
+fn flatpak_manager_stale() -> bool {
     let bundled = match (file_sha256(APP_GEPH5), file_sha256(APP_GEPH5_CLIENT)) {
         (Some(a), Some(b)) => vec![a, b],
         _ => return false,
@@ -171,7 +171,7 @@ fn do_install(is_flatpak: bool) -> anyhow::Result<()> {
         // `flatpak uninstall` removes the per-app data dir; the sandbox's $HOME *is*
         // that dir at its real host path, so pass it as the self-cleanup "owner".
         let owner = std::env::var("HOME").unwrap_or_else(|_| "/".into());
-        let script = staging.join("install-host-daemon.sh");
+        let script = staging.join("install-host-manager.sh");
         Command::new("flatpak-spawn")
             .arg("--host")
             .arg("pkexec")
@@ -179,14 +179,14 @@ fn do_install(is_flatpak: bool) -> anyhow::Result<()> {
             .arg(&staging)
             .arg(&owner)
             .status()
-            .context("running install-host-daemon.sh via flatpak-spawn/pkexec")?
+            .context("running install-host-manager.sh via flatpak-spawn/pkexec")?
     } else {
         // Native: the `.deb` already installed `geph5`; just register the service.
         Command::new("pkexec")
             .arg("geph5")
-            .arg("register-daemon")
+            .arg("register-manager")
             .status()
-            .context("running pkexec geph5 register-daemon")?
+            .context("running pkexec geph5 register-manager")?
     };
     if !status.success() {
         anyhow::bail!("privileged installer exited with {status}");

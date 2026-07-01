@@ -1,17 +1,17 @@
 //! System-tray icon + exit guard (Windows, macOS, Linux).
 //!
-//! The privileged `geph5 daemon` owns the tunnel and runs independently of this
-//! GUI. To avoid the "daemon is tunneling but there is no visible UI" situation,
+//! The privileged `geph5 manager` owns the tunnel and runs independently of this
+//! GUI. To avoid the "tunnel is up but there is no visible UI" situation,
 //! we keep a tray icon alive for the whole process lifetime and only let the
-//! process exit while the daemon is disconnected:
+//! process exit while the manager is disconnected:
 //!
-//!   * closing the window while the daemon is active hides to tray (see the
+//!   * closing the window while the manager is active hides to tray (see the
 //!     `CloseRequested` handler in main.rs),
 //!   * the tray "Quit" disconnects first, then exits,
 //!   * the auto-update path already disconnects before exiting.
 //!
-//! `daemon_running()` (the persisted `connected` flag) is `true` exactly while
-//! the daemon is connecting or connected, so it is our "active" signal. We mirror
+//! `manager_connected()` (the persisted `connected` flag) is `true` exactly while
+//! the manager is connecting or connected, so it is our "active" signal. We mirror
 //! it into an atomic once a second because the close handler is synchronous and
 //! must not block on an RPC.
 
@@ -26,21 +26,21 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
 };
 
-use crate::daemon;
+use crate::manager;
 
-static DAEMON_ACTIVE: AtomicBool = AtomicBool::new(false);
+static TUNNEL_ACTIVE: AtomicBool = AtomicBool::new(false);
 
-/// Last-polled daemon-active (connecting/connected) state. Read synchronously by
+/// Last-polled tunnel-active (connecting/connected) state. Read synchronously by
 /// the close handler to decide hide-to-tray vs. exit.
-pub fn daemon_active() -> bool {
-    DAEMON_ACTIVE.load(Ordering::Relaxed)
+pub fn tunnel_active() -> bool {
+    TUNNEL_ACTIVE.load(Ordering::Relaxed)
 }
 
-/// Background task mirroring `daemon::daemon_running()` into `DAEMON_ACTIVE` ~1s.
+/// Background task mirroring `manager::manager_connected()` into `TUNNEL_ACTIVE` ~1s.
 pub fn spawn_state_poll() {
     smolscale::spawn(async {
         loop {
-            DAEMON_ACTIVE.store(daemon::daemon_running().await, Ordering::Relaxed);
+            TUNNEL_ACTIVE.store(manager::manager_connected().await, Ordering::Relaxed);
             smol::Timer::after(Duration::from_secs(1)).await;
         }
     })
@@ -52,7 +52,7 @@ pub fn spawn_state_poll() {
 pub struct Tray {
     _tray: TrayIcon,
     show: MenuItem,
-    /// A single Connect/Disconnect item whose label tracks the daemon state, so
+    /// A single Connect/Disconnect item whose label tracks the manager state, so
     /// the menu shows only the relevant action instead of both with one greyed out.
     toggle: MenuItem,
     quit: MenuItem,
@@ -69,7 +69,7 @@ pub fn build_tray() -> anyhow::Result<Tray> {
     let labels = l10n::labels(l10n::detect());
     let show = MenuItem::new(labels.show, true, None);
     // One Connect/Disconnect toggle; `pump_tray_events` keeps its label in sync
-    // with the daemon state. Starts as "Connect" (disconnected) and is corrected
+    // with the manager state. Starts as "Connect" (disconnected) and is corrected
     // on the first poll.
     let toggle = MenuItem::new(labels.connect, true, None);
     let quit = MenuItem::new(labels.quit, true, None);
@@ -101,8 +101,8 @@ pub fn build_tray() -> anyhow::Result<Tray> {
 /// `MainEventsCleared` arm: tray-icon posts its window messages to this same
 /// thread's queue, so every click wakes the loop and lands here.
 pub fn pump_tray_events(tray: &Tray, window: &Window) {
-    let active = daemon_active();
-    // Show exactly one of Connect / Disconnect, matching the daemon state.
+    let active = tunnel_active();
+    // Show exactly one of Connect / Disconnect, matching the manager state.
     let desired_label = if active {
         tray.disconnect_label
     } else {
@@ -117,22 +117,22 @@ pub fn pump_tray_events(tray: &Tray, window: &Window) {
             show_window(window);
         } else if event.id == *tray.toggle.id() {
             // Connect when disconnected, disconnect when connected.
-            if daemon_active() {
+            if tunnel_active() {
                 smolscale::spawn(async {
-                    let _ = daemon::stop_daemon().await;
+                    let _ = manager::stop_daemon().await;
                 })
                 .detach();
             } else {
                 smolscale::spawn(async {
-                    let _ = daemon::reconnect_daemon().await;
+                    let _ = manager::reconnect().await;
                 })
                 .detach();
             }
         } else if event.id == *tray.quit.id() {
-            // Honor the invariant: disconnect first, then exit, so the daemon is
+            // Honor the invariant: disconnect first, then exit, so the manager is
             // never left active with no tray.
             smolscale::spawn(async {
-                let _ = daemon::stop_daemon().await;
+                let _ = manager::stop_daemon().await;
                 std::process::exit(0);
             })
             .detach();

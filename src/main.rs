@@ -20,7 +20,7 @@ use tray_icon::menu::{Menu, PredefinedMenuItem, Submenu};
 mod autoupdate;
 #[cfg(target_os = "linux")]
 mod bootstrap;
-mod daemon;
+mod manager;
 mod fakefs;
 
 mod mtbus;
@@ -57,8 +57,8 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    // The engine no longer runs in-process: a separate privileged `geph daemon`
-    // owns the tunnel, and we talk to it over its control protocol (see daemon.rs).
+    // The engine no longer runs in-process: a separate privileged `geph manager`
+    // owns the tunnel, and we talk to it over its control protocol (see manager.rs).
 
     // DO NOT run the autoupdate logic on flatpak, but otherwise it's good
     if std::env::var("FLATPAK_ID").is_err() {
@@ -66,11 +66,11 @@ fn main() -> anyhow::Result<()> {
         smolscale::spawn(autoupdate::download_update_loop()).detach();
     }
 
-    // Make sure the privileged host daemon is installed, current, and answering
+    // Make sure the privileged host manager is installed, current, and answering
     // before we bring up the webview that talks to it. May show a native dialog and
     // elevate via pkexec, or ask for a relaunch; returns false if we should exit now.
     #[cfg(target_os = "linux")]
-    if !bootstrap::ensure_daemon() {
+    if !bootstrap::ensure_manager() {
         return Ok(());
     }
 
@@ -152,7 +152,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut initjs = include_str!("init.js").to_string();
     // Disable VPN configuration UI on macOS only. On Flatpak Linux the privileged
-    // host daemon (bootstrapped at startup) owns the TUN/routing/kill-switch, so
+    // host manager (bootstrapped at startup) owns the TUN/routing/kill-switch, so
     // full-tunnel works from the sandbox and the VPN UI stays enabled.
     if cfg!(target_os = "macos") {
         initjs.push_str("\nwindow.NATIVE_GATE.supports_vpn_conf = false;");
@@ -190,7 +190,7 @@ fn main() -> anyhow::Result<()> {
 
     // The tray icon must be created on (and live on) the event-loop thread, and is
     // kept alive by being moved into the `run` closure below. The poll task keeps
-    // `tray::daemon_active()` fresh for the close handler.
+    // `tray::tunnel_active()` fresh for the close handler.
     let tray = {
         tray::spawn_state_poll();
         tray::build_tray()?
@@ -198,7 +198,7 @@ fn main() -> anyhow::Result<()> {
 
     event_loop.run(move |event, _event_loop_target, control_flow| {
         // Wake ~once a second so the tray menu's enabled/disabled state (Connect vs.
-        // Disconnect) stays in sync with the daemon and pending tray events drain
+        // Disconnect) stays in sync with the manager and pending tray events drain
         // promptly. tray-icon delivers clicks/menu events through global channels
         // that we poll in `MainEventsCleared`, so a steady tick keeps the tray
         // responsive on every platform.
@@ -222,18 +222,18 @@ fn main() -> anyhow::Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                // The `geph daemon` is a persistent, privileged process that owns
+                // The `geph manager` is a persistent, privileged process that owns
                 // the tunnel and keeps managing it in the background.
                 //
-                // We must never leave the daemon active with no tray icon, so while
+                // We must never leave the manager active with no tray icon, so while
                 // it's connecting/connected we only hide to tray; we exit (taking the
                 // tray with us) only once it's disconnected. The tray's "Quit" item
                 // disconnects first, then exits, preserving the same invariant.
-                if tray::daemon_active() {
-                    println!("daemon active; hiding GUI to tray instead of exiting");
+                if tray::tunnel_active() {
+                    println!("tunnel active; hiding GUI to tray instead of exiting");
                     window.set_visible(false);
                 } else {
-                    println!("daemon disconnected; closing the GUI");
+                    println!("tunnel down; closing the GUI");
                     *control_flow = ControlFlow::Exit;
                 }
             }

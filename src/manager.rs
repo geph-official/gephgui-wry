@@ -1,11 +1,11 @@
-//! Talks to the privileged `geph5 daemon` (the geph5-app supervisor) over
+//! Talks to the privileged `geph5 manager` (the geph5-app supervisor) over
 //! its loopback control protocol, instead of spawning geph5-client ourselves.
 //!
-//! The daemon owns the engine lifecycle: it always keeps a child geph5-client
+//! The manager owns the engine lifecycle: it always keeps a child geph5-client
 //! running (a dry-run instance while disconnected, a real tunnel while
 //! connected), so engine/broker queries forwarded through `daemon_rpc` work
 //! whether or not we're connected. We only translate the GUI's lifecycle calls
-//! (`start_daemon` / `stop_daemon` / `restart_daemon`) into the daemon's
+//! (`start_daemon` / `stop_daemon` / `restart_daemon`) into the manager's
 //! `GephCtl` methods, and forward everything else through `daemon_rpc`.
 
 use std::time::Duration;
@@ -18,12 +18,12 @@ use smol_timeout2::TimeoutExt;
 
 use crate::rpc::DaemonArgs;
 
-/// The `geph daemon` control endpoint (GephCtlProtocol). A unix domain socket on
-/// unix (matching the daemon's `daemon_control_path()` = `runtime_dir()`/`control.sock`);
-/// a Windows named pipe on Windows (matching the daemon's `DAEMON_CONTROL_PIPE`).
+/// The `geph manager` control endpoint (GephCtlProtocol). A unix domain socket on
+/// unix (matching the manager's `manager_control_path()` = `runtime_dir()`/`control.sock`);
+/// a Windows named pipe on Windows (matching the manager's `MANAGER_CONTROL_PIPE`).
 ///
 /// `runtime_dir()` is `/run/geph` on Linux, but `/var/run/geph` on macOS (which
-/// has no `/run`), so the socket path must be split per-OS to match the daemon
+/// has no `/run`), so the socket path must be split per-OS to match the manager
 /// exactly — otherwise the connect attempt fails with ENOENT ("no such file or
 /// directory").
 #[cfg(target_os = "macos")]
@@ -31,16 +31,16 @@ const GEPH_CTL_SOCK: &str = "/var/run/geph/control.sock";
 #[cfg(all(unix, not(target_os = "macos")))]
 const GEPH_CTL_SOCK: &str = "/run/geph/control.sock";
 #[cfg(windows)]
-const GEPH_CTL_PIPE: &str = r"\\.\pipe\geph-daemon-control";
+const GEPH_CTL_PIPE: &str = r"\\.\pipe\geph-manager-control";
 
-/// Low-level: send one `GephCtl` JSON-RPC request to the daemon and read the reply.
+/// Low-level: send one `GephCtl` JSON-RPC request to the manager and read the reply.
 async fn ctl_call(req: JrpcRequest) -> anyhow::Result<JrpcResponse> {
     let line = format!("{}\n", serde_json::to_string(&req)?);
     let resp = transact(line).await?;
     Ok(serde_json::from_str(&resp)?)
 }
 
-/// Send one newline-terminated request line to the daemon's control endpoint and
+/// Send one newline-terminated request line to the manager's control endpoint and
 /// return its one-line reply. The transport is runtime-native: gephgui runs on
 /// smolscale (no tokio reactor), so unix uses a smol unix socket directly, and
 /// Windows does a blocking Win32 named-pipe exchange off-thread via
@@ -51,7 +51,7 @@ async fn transact(req_line: String) -> anyhow::Result<String> {
     let conn = smol::net::unix::UnixStream::connect(GEPH_CTL_SOCK)
         .timeout(Duration::from_millis(500))
         .await
-        .context("timed out connecting to geph daemon")??;
+        .context("timed out connecting to geph manager")??;
     let (read, mut write) = conn.split();
     write.write_all(req_line.as_bytes()).await?;
     let mut read = BufReader::new(read);
@@ -105,7 +105,7 @@ mod windows_pipe {
                     thread::sleep(Duration::from_millis(50));
                 }
                 Err(e) => {
-                    return Err(anyhow::Error::new(e).context("connecting to geph daemon pipe"));
+                    return Err(anyhow::Error::new(e).context("connecting to geph manager pipe"));
                 }
             }
         }
@@ -123,16 +123,16 @@ async fn geph_ctl(method: &str, params: Vec<Value>) -> anyhow::Result<Value> {
     let resp = ctl_call(req)
         .timeout(Duration::from_secs(60))
         .await
-        .context("geph daemon call timed out")??;
+        .context("geph manager call timed out")??;
     if let Some(err) = resp.error {
         anyhow::bail!("{}", err.message);
     }
     Ok(resp.result.unwrap_or(Value::Null))
 }
 
-/// The calling desktop session, so the (root) daemon configures *our* proxy.
+/// The calling desktop session, so the (root) manager configures *our* proxy.
 /// This is just identity — uid plus a few env vars; the proxy logic is the
-/// daemon's.
+/// manager's.
 fn session() -> Value {
     #[cfg(unix)]
     {
@@ -165,7 +165,7 @@ fn exit_constraint_value(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<Va
     Ok(serde_json::to_value(constraint)?)
 }
 
-/// Push the GUI's `DaemonArgs` into the daemon's settings (secret, exit,
+/// Push the GUI's `DaemonArgs` into the manager's settings (secret, exit,
 /// full-tunnel VPN mode, local-proxy config, allow-direct) without yet
 /// connecting. Shared by start/restart.
 async fn push_settings(args: &DaemonArgs) -> anyhow::Result<()> {
@@ -177,9 +177,9 @@ async fn push_settings(args: &DaemonArgs) -> anyhow::Result<()> {
     )
     .await?;
     // Full-tunnel VPN mode (vs. local proxy). Must be pushed before connect so
-    // the daemon brings the tunnel up in the right mode.
+    // the manager brings the tunnel up in the right mode.
     geph_ctl("set_vpn_mode", vec![json!(args.global_vpn)]).await?;
-    // Local-proxy config; null means the daemon listens on no ports at all.
+    // Local-proxy config; null means the manager listens on no ports at all.
     geph_ctl("set_proxy_settings", vec![json!(args.proxy), session()]).await?;
     geph_ctl("set_allow_direct", vec![json!(args.allow_direct)]).await?;
     Ok(())
@@ -192,7 +192,7 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
 }
 
 pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    // The daemon is persistent; "restart" is just pushing new settings and
+    // The manager is persistent; "restart" is just pushing new settings and
     // (re)connecting. connect() restarts the child with the new exit.
     push_settings(&args).await?;
     geph_ctl("connect", vec![session()]).await?;
@@ -204,16 +204,16 @@ pub async fn stop_daemon() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Reconnect using the daemon's already-persisted secret + exit constraint, with
+/// Reconnect using the manager's already-persisted secret + exit constraint, with
 /// no `DaemonArgs` from the JS UI. This is what the tray "Connect" action uses:
-/// the daemon keeps the last-used settings, so a bare `connect` brings the tunnel
+/// the manager keeps the last-used settings, so a bare `connect` brings the tunnel
 /// back up exactly as the user last had it.
-pub async fn reconnect_daemon() -> anyhow::Result<()> {
+pub async fn reconnect() -> anyhow::Result<()> {
     geph_ctl("connect", vec![session()]).await?;
     Ok(())
 }
 
-/// Switch the exit constraint. The daemon persists it and, if currently
+/// Switch the exit constraint. The manager persists it and, if currently
 /// connected, reconnects to the new exit WITHOUT a leak window (the kill switch
 /// stays up; only the engine child is restarted).
 pub async fn set_exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<()> {
@@ -221,17 +221,17 @@ pub async fn set_exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::R
     Ok(())
 }
 
-/// Whether the daemon's control endpoint is up and answering at all (regardless of
+/// Whether the manager's control endpoint is up and answering at all (regardless of
 /// connection state). Used by the startup bootstrap to decide whether the host
-/// daemon needs to be installed/started.
+/// manager needs to be installed/started.
 #[cfg(unix)]
-pub async fn daemon_reachable() -> bool {
+pub async fn manager_reachable() -> bool {
     geph_ctl("get_settings", vec![]).await.is_ok()
 }
 
 /// Whether the user currently wants the tunnel up (mirrors the old "is the
-/// daemon process running" semantics, which only existed while connected).
-pub async fn daemon_running() -> bool {
+/// manager process running" semantics, which only existed while connected).
+pub async fn manager_connected() -> bool {
     match geph_ctl("get_settings", vec![]).await {
         Ok(v) => v
             .get("connected")
@@ -242,7 +242,7 @@ pub async fn daemon_running() -> bool {
 }
 
 /// Forward a raw engine RPC (`conn_info`, `broker_rpc`, `net_status`,
-/// `stat_history`, `recent_logs`, `start_registration`, …) to the daemon, which
+/// `stat_history`, `recent_logs`, `start_registration`, …) to the manager, which
 /// relays it to its always-running child geph5-client. This is what makes
 /// broker/engine calls work whether or not we're connected.
 pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
@@ -256,7 +256,7 @@ pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
         .timeout(Duration::from_secs(10))
         .await
         .context("daemon_rpc timed out")??;
-    // The daemon's `daemon_rpc` result/error already reflects the inner call.
+    // The manager's `daemon_rpc` result/error already reflects the inner call.
     resp.id = inner.id;
     Ok(resp)
 }
