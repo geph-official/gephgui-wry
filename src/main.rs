@@ -2,11 +2,9 @@
 
 use fakefs::FakeFs;
 
-use mtbus::mt_next;
+use mtbus::{mt_enqueue, mt_next};
 
 use rpc::ipc_handle;
-// #[cfg(feature = "tray")]
-// use tao::system_tray::{SystemTray, SystemTrayBuilder};
 use tao::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
@@ -15,14 +13,19 @@ use tao::{
 };
 
 #[cfg(target_os = "macos")]
-use muda::{Menu, PredefinedMenuItem, Submenu};
+use tao::platform::macos::{ActivationPolicy, EventLoopWindowTargetExtMacOS};
+#[cfg(target_os = "macos")]
+use tray_icon::menu::{Menu, PredefinedMenuItem, Submenu};
 
 mod autoupdate;
+#[cfg(target_os = "linux")]
+mod bootstrap;
 mod daemon;
 mod fakefs;
 
 mod mtbus;
 mod rpc;
+mod tray;
 
 use wry::{WebContext, WebView, WebViewBuilder};
 
@@ -36,6 +39,24 @@ fn main() -> anyhow::Result<()> {
         std::env::remove_var("HTTP_PROXY");
         std::env::remove_var("HTTPS_PROXY");
     }
+
+    // The loopback HTTP port doubles as a single-instance lock: only one instance
+    // can bind it. A second launch (e.g. the user opens Geph while an autostarted
+    // `--hidden` instance is already running) fails to bind, so it pings the
+    // running instance to surface its window and then exits — otherwise we'd end
+    // up with two tray icons. Do this first, before any startup work, so a second
+    // launch bails immediately instead of after the autoupdate network check.
+    let server = match tiny_http::Server::http("127.0.0.1:5678") {
+        Ok(server) => server,
+        Err(_) => {
+            use std::io::Write;
+            if let Ok(mut stream) = std::net::TcpStream::connect("127.0.0.1:5678") {
+                let _ = stream.write_all(b"GET /__show HTTP/1.0\r\nHost: localhost\r\n\r\n");
+            }
+            std::process::exit(0);
+        }
+    };
+
     // The engine no longer runs in-process: a separate privileged `geph daemon`
     // owns the tunnel, and we talk to it over its control protocol (see daemon.rs).
 
@@ -45,11 +66,29 @@ fn main() -> anyhow::Result<()> {
         smolscale::spawn(autoupdate::download_update_loop()).detach();
     }
 
+    // Make sure the privileged host daemon is installed, current, and answering
+    // before we bring up the webview that talks to it. May show a native dialog and
+    // elevate via pkexec, or ask for a relaunch; returns false if we should exit now.
+    #[cfg(target_os = "linux")]
+    if !bootstrap::ensure_daemon() {
+        return Ok(());
+    }
+
     // Start a simple HTTP server in a separate thread
-    std::thread::spawn(|| {
-        let server = tiny_http::Server::http("127.0.0.1:5678").unwrap();
+    std::thread::spawn(move || {
         for request in server.incoming_requests() {
             let url = request.url().trim_start_matches('/');
+            // Single-instance "show yourself" ping from a second launch.
+            if url == "__show" {
+                mt_enqueue(|_, window| {
+                    window.set_visible(true);
+                    window.set_focus();
+                });
+                request
+                    .respond(tiny_http::Response::from_string("ok"))
+                    .ok();
+                continue;
+            }
             let url = if url.is_empty() { "index.html" } else { url };
 
             if let Some(resp) = FakeFs::get(url) {
@@ -80,8 +119,13 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
+    // Launched at login via the installer's autostart shortcut with `--hidden`:
+    // come up as just the tray icon, no window. Manual launches show the window.
+    let start_hidden = std::env::args().any(|arg| arg == "--hidden");
+
     let window = WindowBuilder::new()
         .with_resizable(true)
+        .with_visible(!start_hidden)
         .with_inner_size(LogicalSize {
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
@@ -107,9 +151,10 @@ fn main() -> anyhow::Result<()> {
     }
 
     let mut initjs = include_str!("init.js").to_string();
-    // Disable the VPN configuration UI only on Flatpak Linux, whose sandbox can't
-    // manage a system tun device. macOS, Windows, and regular Linux support it.
-    if cfg!(target_os = "linux") && std::env::var("FLATPAK_ID").is_ok() {
+    // Disable VPN configuration UI on macOS only. On Flatpak Linux the privileged
+    // host daemon (bootstrapped at startup) owns the TUN/routing/kill-switch, so
+    // full-tunnel works from the sandbox and the VPN UI stays enabled.
+    if cfg!(target_os = "macos") {
         initjs.push_str("\nwindow.NATIVE_GATE.supports_vpn_conf = false;");
     }
 
@@ -142,31 +187,58 @@ fn main() -> anyhow::Result<()> {
         let vbox = window.default_vbox().unwrap();
         builder.build_gtk(vbox)?
     };
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+
+    // The tray icon must be created on (and live on) the event-loop thread, and is
+    // kept alive by being moved into the `run` closure below. The poll task keeps
+    // `tray::daemon_active()` fresh for the close handler.
+    let tray = {
+        tray::spawn_state_poll();
+        tray::build_tray()?
+    };
+
+    event_loop.run(move |event, _event_loop_target, control_flow| {
+        // Wake ~once a second so the tray menu's enabled/disabled state (Connect vs.
+        // Disconnect) stays in sync with the daemon and pending tray events drain
+        // promptly. tray-icon delivers clicks/menu events through global channels
+        // that we poll in `MainEventsCleared`, so a steady tick keeps the tray
+        // responsive on every platform.
+        *control_flow =
+            ControlFlow::WaitUntil(std::time::Instant::now() + std::time::Duration::from_secs(1));
         match event {
+            // Force the Dock icon on macOS. tao defaults to `ActivationPolicy::Regular`
+            // and normally applies it in `applicationDidFinishLaunching`, which would
+            // give us a Dock tile. But on our startup path the webview, tray
+            // `NSStatusItem`, and app menu all touch the shared `NSApplication`
+            // before `event_loop.run()` (and the update check can pump a modal loop),
+            // so tao's launch-time policy application is skipped and the process ends
+            // up effectively "accessory": window + status item, but no Dock icon.
+            // Re-asserting Regular once, from inside the loop, restores it.
+            #[cfg(target_os = "macos")]
+            Event::NewEvents(tao::event::StartCause::Init) => {
+                _event_loop_target.set_activation_policy_at_runtime(ActivationPolicy::Regular);
+            }
             Event::UserEvent(e) => e(&webview, &window),
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                println!("The close button was pressed; closing the GUI");
                 // The `geph daemon` is a persistent, privileged process that owns
-                // the tunnel and keeps managing it in the background. Closing the
-                // GUI just detaches from it — we deliberately do NOT disconnect or
-                // tear down the tunnel here. On relaunch the GUI reattaches and
-                // reflects the daemon's current state via `daemon_running()`.
-                *control_flow = ControlFlow::Exit
+                // the tunnel and keeps managing it in the background.
+                //
+                // We must never leave the daemon active with no tray icon, so while
+                // it's connecting/connected we only hide to tray; we exit (taking the
+                // tray with us) only once it's disconnected. The tray's "Quit" item
+                // disconnects first, then exits, preserving the same invariant.
+                if tray::daemon_active() {
+                    println!("daemon active; hiding GUI to tray instead of exiting");
+                    window.set_visible(false);
+                } else {
+                    println!("daemon disconnected; closing the GUI");
+                    *control_flow = ControlFlow::Exit;
+                }
             }
             Event::MainEventsCleared => {
-                // Application update code.
-
-                // Queue a RedrawRequested event.
-                //
-                // You only need to call this if you've determined that you need to redraw, in
-                // applications which do not always need to. Applications that redraw continuously
-                // can just render here instead.
-                // window.request_redraw();
+                tray::pump_tray_events(&tray, &window);
             }
             Event::RedrawRequested(_) => {
                 // Redraw the application.

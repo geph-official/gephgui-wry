@@ -19,9 +19,16 @@ use smol_timeout2::TimeoutExt;
 use crate::rpc::DaemonArgs;
 
 /// The `geph daemon` control endpoint (GephCtlProtocol). A unix domain socket on
-/// unix (matching the daemon's `daemon_control_path()`); a Windows named pipe on
-/// Windows (matching the daemon's `DAEMON_CONTROL_PIPE`).
-#[cfg(unix)]
+/// unix (matching the daemon's `daemon_control_path()` = `runtime_dir()`/`control.sock`);
+/// a Windows named pipe on Windows (matching the daemon's `DAEMON_CONTROL_PIPE`).
+///
+/// `runtime_dir()` is `/run/geph` on Linux, but `/var/run/geph` on macOS (which
+/// has no `/run`), so the socket path must be split per-OS to match the daemon
+/// exactly — otherwise the connect attempt fails with ENOENT ("no such file or
+/// directory").
+#[cfg(target_os = "macos")]
+const GEPH_CTL_SOCK: &str = "/var/run/geph/control.sock";
+#[cfg(all(unix, not(target_os = "macos")))]
 const GEPH_CTL_SOCK: &str = "/run/geph/control.sock";
 #[cfg(windows)]
 const GEPH_CTL_PIPE: &str = r"\\.\pipe\geph-daemon-control";
@@ -196,12 +203,29 @@ pub async fn stop_daemon() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Reconnect using the daemon's already-persisted secret + exit constraint, with
+/// no `DaemonArgs` from the JS UI. This is what the tray "Connect" action uses:
+/// the daemon keeps the last-used settings, so a bare `connect` brings the tunnel
+/// back up exactly as the user last had it.
+pub async fn reconnect_daemon() -> anyhow::Result<()> {
+    geph_ctl("connect", vec![session()]).await?;
+    Ok(())
+}
+
 /// Switch the exit constraint. The daemon persists it and, if currently
 /// connected, reconnects to the new exit WITHOUT a leak window (the kill switch
 /// stays up; only the engine child is restarted).
 pub async fn set_exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<()> {
     geph_ctl("set_exit_constraint", vec![exit_constraint_value(exit)?]).await?;
     Ok(())
+}
+
+/// Whether the daemon's control endpoint is up and answering at all (regardless of
+/// connection state). Used by the startup bootstrap to decide whether the host
+/// daemon needs to be installed/started.
+#[cfg(unix)]
+pub async fn daemon_reachable() -> bool {
+    geph_ctl("get_settings", vec![]).await.is_ok()
 }
 
 /// Whether the user currently wants the tunnel up (mirrors the old "is the

@@ -150,60 +150,55 @@ async fn run_update(version: &str, path: &Path) -> anyhow::Result<()> {
     let version = version.to_string();
     let path = path.to_path_buf();
 
-    // Use smol::unblock to perform blocking dialog operations
-    let should_exit = smol::unblock(move || {
-        // Check if system language is Chinese
-        let is_chinese = sys_locale::get_locale().unwrap_or_default().contains("zh");
+    // The update prompt is a native modal dialog. On macOS, `rfd` refuses to show
+    // a dialog from any thread other than the main one while the app isn't yet a
+    // windowed foreground app — so we must NOT offload this to a blocking-pool
+    // thread (e.g. `smol::unblock`), which is exactly what used to panic here.
+    //
+    // The sole caller, `prompt_cached_update_if_available`, runs via `block_on` on
+    // the main thread at startup, before the event loop exists. Showing the dialog
+    // inline therefore keeps it on the main thread and intentionally blocks startup
+    // until the user answers.
+    let is_chinese = sys_locale::get_locale().unwrap_or_default().contains("zh");
 
-        // Prepare dialog text based on language
-        let title = if is_chinese {
-            "迷雾通更新可用"
-        } else {
-            "Geph Update Available"
-        };
+    let title = if is_chinese {
+        "迷雾通更新可用"
+    } else {
+        "Geph Update Available"
+    };
 
-        let description = if is_chinese {
-            format!("迷雾通新版本可用 ({version}). 安装此更新将停止当前迷雾通程序并运行安装程序。现在安装？")
-        } else {
-            format!("A new version of Geph is available ({version}). Installing this update will stop the current Geph program and run the installer. Install now?")
-        };
+    let description = if is_chinese {
+        format!("迷雾通新版本可用 ({version}). 安装此更新将停止当前迷雾通程序并运行安装程序。现在安装？")
+    } else {
+        format!("A new version of Geph is available ({version}). Installing this update will stop the current Geph program and run the installer. Install now?")
+    };
 
-        // Show a dialog to inform the user about the update
-        let result = MessageDialog::new()
-            .set_title(title)
-            .set_description(&description)
-            .set_buttons(rfd::MessageButtons::YesNo)
-            .show();
+    let result = MessageDialog::new()
+        .set_title(title)
+        .set_description(&description)
+        .set_buttons(rfd::MessageButtons::YesNo)
+        .show();
 
-        if result == rfd::MessageDialogResult::Yes {
-            // User clicked Yes, run the installer
-
-            // Run the installer
-            #[cfg(target_os = "windows")]
-            {
-                // On Windows, just execute the installer
-                std::process::Command::new(&path).arg("/SILENT").spawn()?;
-            }
-
-            #[cfg(target_os = "macos")]
-            {
-                // On macOS, open the .dmg or .pkg file
-                std::process::Command::new("open").arg(&path).spawn()?;
-            }
-
-            #[cfg(target_os = "linux")]
-            {
-                let _ = &path;
-            }
-
-            // Return true to indicate we should exit
-            anyhow::Ok(true)
-        } else {
-            // User clicked No, don't exit
-            Ok(false)
+    let should_exit = if result == rfd::MessageDialogResult::Yes {
+        // User clicked Yes, run the installer.
+        #[cfg(target_os = "windows")]
+        {
+            // On Windows, just execute the installer.
+            std::process::Command::new(&path).arg("/SILENT").spawn()?;
         }
-    })
-    .await?;
+        #[cfg(target_os = "macos")]
+        {
+            // On macOS, open the .dmg or .pkg file.
+            std::process::Command::new("open").arg(&path).spawn()?;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let _ = &path;
+        }
+        true
+    } else {
+        false
+    };
 
     if should_exit {
         // Stop the daemon
