@@ -166,8 +166,8 @@ fn exit_constraint_value(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<Va
 }
 
 /// Push the GUI's `DaemonArgs` into the daemon's settings (secret, exit,
-/// full-tunnel VPN mode, auto-proxy, allow-direct) without yet connecting.
-/// Shared by start/restart.
+/// full-tunnel VPN mode, local-proxy config, allow-direct) without yet
+/// connecting. Shared by start/restart.
 async fn push_settings(args: &DaemonArgs) -> anyhow::Result<()> {
     // login persists + validates the secret; harmless if unchanged.
     geph_ctl("login", vec![json!(args.secret)]).await?;
@@ -179,7 +179,8 @@ async fn push_settings(args: &DaemonArgs) -> anyhow::Result<()> {
     // Full-tunnel VPN mode (vs. local proxy). Must be pushed before connect so
     // the daemon brings the tunnel up in the right mode.
     geph_ctl("set_vpn_mode", vec![json!(args.global_vpn)]).await?;
-    geph_ctl("set_auto_proxy", vec![json!(args.proxy_autoconf), session()]).await?;
+    // Local-proxy config; null means the daemon listens on no ports at all.
+    geph_ctl("set_proxy_settings", vec![json!(args.proxy), session()]).await?;
     geph_ctl("set_allow_direct", vec![json!(args.allow_direct)]).await?;
     Ok(())
 }

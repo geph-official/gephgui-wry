@@ -276,6 +276,25 @@ trait IpcProtocol {
         }
     }
 
+    /// Non-loopback addresses of this machine, for the "listen on all
+    /// interfaces" display in the GUI.
+    async fn get_lan_addresses(&self) -> Vec<String> {
+        smol::unblock(|| {
+            let mut out: Vec<String> = if_addrs::get_if_addrs()
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|iface| !iface.is_loopback() && !iface.is_link_local())
+                .map(|iface| iface.ip())
+                .filter(|ip| !ip.is_unspecified())
+                .map(|ip| ip.to_string())
+                .collect();
+            out.sort();
+            out.dedup();
+            out
+        })
+        .await
+    }
+
     /// Sample echo method left from your original snippet.
     async fn echo(&self, i: f64) -> f64 {
         i
@@ -304,9 +323,18 @@ pub struct DaemonArgs {
     pub prc_whitelist: bool,
     pub exit: ExitConstraint,
     pub global_vpn: bool,
-    pub listen_all: bool,
-    pub proxy_autoconf: bool,
+    /// Local-proxy configuration; `None` means the daemon listens on no ports.
+    pub proxy: Option<ProxyArgs>,
     pub allow_direct: bool,
+}
+
+/// Mirrors the JS `ProxyArgs` (and the daemon's `ProxySettings`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProxyArgs {
+    pub autoconf: bool,
+    pub listen_all: bool,
+    pub socks5_port: u16,
+    pub http_port: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
