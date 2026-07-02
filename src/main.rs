@@ -150,13 +150,11 @@ fn main() -> anyhow::Result<()> {
         menu?.init_for_nsapp();
     }
 
-    let mut initjs = include_str!("init.js").to_string();
-    // Disable VPN configuration UI on macOS only. On Flatpak Linux the privileged
-    // host manager (bootstrapped at startup) owns the TUN/routing/kill-switch, so
-    // full-tunnel works from the sandbox and the VPN UI stays enabled.
-    if cfg!(target_os = "macos") {
-        initjs.push_str("\nwindow.NATIVE_GATE.supports_vpn_conf = false;");
-    }
+    // The VPN configuration UI is enabled everywhere: geph5 supports full-tunnel
+    // VPN on macOS (see f84ffef), and on Flatpak Linux the privileged host
+    // manager (bootstrapped at startup) owns the TUN/routing/kill-switch, so
+    // full-tunnel works from the sandbox too.
+    let initjs = include_str!("init.js").to_string();
 
     let mut wctx = WebContext::new(dirs::config_dir());
     let builder = WebViewBuilder::with_web_context(&mut wctx)
