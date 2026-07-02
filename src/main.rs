@@ -187,12 +187,16 @@ fn main() -> anyhow::Result<()> {
     };
 
     // The tray icon must be created on (and live on) the event-loop thread, and is
-    // kept alive by being moved into the `run` closure below. The poll task keeps
-    // `tray::tunnel_active()` fresh for the close handler.
-    let tray = {
-        tray::spawn_state_poll();
-        tray::build_tray()?
-    };
+    // kept alive by being moved into the `run` closure below. It is built inside
+    // the loop's Init arm rather than here: on macOS the status item must be
+    // created AFTER the activation-policy re-assert below — changing the policy
+    // of a bundle-launched app tears down any NSStatusItem created before it, so
+    // building it up-front yields an app with no tray icon when launched from
+    // Geph.app (while working fine when the binary is run from a terminal, where
+    // the policy change is a no-op). The poll task keeps `tray::tunnel_active()`
+    // fresh for the close handler.
+    tray::spawn_state_poll();
+    let mut tray: Option<tray::Tray> = None;
 
     event_loop.run(move |event, _event_loop_target, control_flow| {
         // Wake ~once a second so the tray menu's enabled/disabled state (Connect vs.
@@ -203,17 +207,26 @@ fn main() -> anyhow::Result<()> {
         *control_flow =
             ControlFlow::WaitUntil(std::time::Instant::now() + std::time::Duration::from_secs(1));
         match event {
-            // Force the Dock icon on macOS. tao defaults to `ActivationPolicy::Regular`
-            // and normally applies it in `applicationDidFinishLaunching`, which would
-            // give us a Dock tile. But on our startup path the webview, tray
-            // `NSStatusItem`, and app menu all touch the shared `NSApplication`
-            // before `event_loop.run()` (and the update check can pump a modal loop),
-            // so tao's launch-time policy application is skipped and the process ends
-            // up effectively "accessory": window + status item, but no Dock icon.
-            // Re-asserting Regular once, from inside the loop, restores it.
-            #[cfg(target_os = "macos")]
             Event::NewEvents(tao::event::StartCause::Init) => {
+                // Force the Dock icon on macOS. tao defaults to `ActivationPolicy::Regular`
+                // and normally applies it in `applicationDidFinishLaunching`, which would
+                // give us a Dock tile. But on our startup path the webview and app menu
+                // touch the shared `NSApplication` before `event_loop.run()` (and the
+                // update check can pump a modal loop), so tao's launch-time policy
+                // application is skipped and the process ends up effectively
+                // "accessory": window but no Dock icon. Re-asserting Regular once, from
+                // inside the loop, restores it.
+                #[cfg(target_os = "macos")]
                 _event_loop_target.set_activation_policy_at_runtime(ActivationPolicy::Regular);
+
+                // Build the tray only now: on macOS the policy re-assert above would
+                // destroy a status item created before it (see the comment at the
+                // `tray` declaration). Tray failure is logged rather than fatal — a
+                // missing tray icon shouldn't take the whole GUI down.
+                match tray::build_tray() {
+                    Ok(t) => tray = Some(t),
+                    Err(err) => eprintln!("failed to build tray icon: {err:#}"),
+                }
             }
             Event::UserEvent(e) => e(&webview, &window),
             Event::WindowEvent {
@@ -236,7 +249,9 @@ fn main() -> anyhow::Result<()> {
                 }
             }
             Event::MainEventsCleared => {
-                tray::pump_tray_events(&tray, &window);
+                if let Some(tray) = &tray {
+                    tray::pump_tray_events(tray, &window);
+                }
             }
             Event::RedrawRequested(_) => {
                 // Redraw the application.
