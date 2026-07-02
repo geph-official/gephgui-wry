@@ -81,11 +81,27 @@ pub fn build_tray() -> anyhow::Result<Tray> {
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&quit)?;
 
-    let tray = TrayIconBuilder::new()
+    #[allow(unused_mut)]
+    let mut builder = TrayIconBuilder::new()
         .with_tooltip("Geph")
         .with_icon(load_icon()?)
-        .with_menu(Box::new(menu))
-        .build()?;
+        .with_menu(Box::new(menu));
+
+    // Under Flatpak, the appindicator icon is passed to the host's tray daemon
+    // as a file path, so it must live somewhere the host can read. The
+    // sandbox-private /tmp default is invisible outside;
+    // $XDG_RUNTIME_DIR/app/$FLATPAK_ID is shared with the host at the same path.
+    #[cfg(target_os = "linux")]
+    if let (Ok(app_id), Ok(runtime_dir)) = (
+        std::env::var("FLATPAK_ID"),
+        std::env::var("XDG_RUNTIME_DIR"),
+    ) {
+        let dir = std::path::Path::new(&runtime_dir).join("app").join(app_id);
+        let _ = std::fs::create_dir_all(&dir);
+        builder = builder.with_temp_dir_path(dir);
+    }
+
+    let tray = builder.build()?;
 
     Ok(Tray {
         _tray: tray,
