@@ -131,7 +131,7 @@ version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81953c529336010edd6d8e358f886d9581267795c61b19475b71314bffa46d35"
 dependencies = [
- "concurrent-queue 2.5.0",
+ "concurrent-queue",
  "event-listener 2.5.3",
  "futures-core",
 ]
@@ -142,7 +142,7 @@ version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "924ed96dd52d1b75e9c1a3e6275715fd320f5f9439fb5a4a11fa51f4221158d2"
 dependencies = [
- "concurrent-queue 2.5.0",
+ "concurrent-queue",
  "event-listener-strategy",
  "futures-core",
  "pin-project-lite 0.2.17",
@@ -187,7 +187,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c96bf972d85afc50bf5ab8fe2d54d1586b4e0b46c97c50a0c9e71e2f7bcd812a"
 dependencies = [
  "async-task",
- "concurrent-queue 2.5.0",
+ "concurrent-queue",
  "fastrand 2.4.1",
  "futures-lite 2.6.1",
  "pin-project-lite 0.2.17",
@@ -228,7 +228,7 @@ checksum = "456b8a8feb6f42d237746d4b3e9a178494627745c3c56c6ea55d92ba50d026fc"
 dependencies = [
  "autocfg",
  "cfg-if",
- "concurrent-queue 2.5.0",
+ "concurrent-queue",
  "futures-io",
  "futures-lite 2.6.1",
  "parking",
@@ -399,19 +399,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "bipe"
-version = "0.2.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9adc32689214e282235be3fdce0d783f61bdb0c5e65725717389f0564eca9a66"
-dependencies = [
- "concurrent-queue 1.2.4",
- "crossbeam-queue",
- "event-listener 2.5.3",
- "futures-core",
- "futures-lite 1.13.0",
 ]
 
 [[package]]
@@ -703,15 +690,6 @@ checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
 dependencies = [
  "bytes",
  "memchr",
-]
-
-[[package]]
-name = "concurrent-queue"
-version = "1.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af4780a44ab5696ea9e28294517f1fffb421a83a25af521333c838635509db9c"
-dependencies = [
- "cache-padded",
 ]
 
 [[package]]
@@ -1390,7 +1368,7 @@ version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13b66accf52311f30a0db42147dadea9850cb48cd070028831ae5f5d4b856ab"
 dependencies = [
- "concurrent-queue 2.5.0",
+ "concurrent-queue",
  "parking",
  "pin-project-lite 0.2.17",
 ]
@@ -1800,34 +1778,7 @@ dependencies = [
 
 [[package]]
 name = "geph5-broker-protocol"
-version = "0.2.102"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "916754ebb36e00afa2656359f5d7ae1008a1d9d2673ead62d72fa1571b3f13d2"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64",
- "blake3",
- "bytes",
- "ed25519-dalek",
- "isocountry",
- "language-tags",
- "melpow",
- "mizaru2 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanorpc",
- "olpc-cjson",
- "serde",
- "serde_json",
- "serde_with 3.19.0",
- "sillad-meeklike 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "stdcode",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "geph5-broker-protocol"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1839,13 +1790,13 @@ dependencies = [
  "isocountry",
  "language-tags",
  "melpow",
- "mizaru2 0.2.18",
+ "mizaru2",
  "nanorpc",
  "olpc-cjson",
  "serde",
  "serde_json",
  "serde_with 3.19.0",
- "sillad-meeklike 0.1.3",
+ "sillad-meeklike 0.2.0",
  "stdcode",
  "thiserror 1.0.69",
  "tracing",
@@ -1853,39 +1804,53 @@ dependencies = [
 
 [[package]]
 name = "geph5-misc-rpc"
-version = "0.2.102"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0ac83831234dd5218b98e6940140b946cf6b3b76378577639237a9a4ea13e8c"
+checksum = "5a3d8a2a6596b7929b7f779e0378d31cb165e7958e9e3fdbf3757bd844ace32e"
 dependencies = [
  "anyhow",
- "async-task",
  "async-trait",
- "bipe",
  "blake3",
  "bytes",
  "chacha20poly1305",
  "ed25519-dalek",
- "futures-util",
- "geph5-broker-protocol 0.2.102",
+ "geph5-broker-protocol",
+ "geph5-rt 0.3.0",
  "nanorpc",
  "pin-project",
  "serde",
  "serde_json",
- "sillad 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "sillad-meeklike 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sillad-meeklike 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec",
- "smolscale",
  "socksv5",
  "stdcode",
  "tachyonix",
  "tap",
  "thiserror 1.0.69",
+ "tokio",
  "x25519-dalek",
 ]
 
 [[package]]
 name = "geph5-rt"
-version = "0.1.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e25df10f005dd41074855bdf6df435066b49a0bd1714cd5ad6bb188f5f99949"
+dependencies = [
+ "async-channel 2.5.0",
+ "bytes",
+ "futures-concurrency",
+ "futures-util",
+ "libc",
+ "pin-project-lite 0.2.17",
+ "rand 0.8.6",
+ "tokio",
+]
+
+[[package]]
+name = "geph5-rt"
+version = "0.3.1"
 dependencies = [
  "async-channel 2.5.0",
  "bytes",
@@ -1899,7 +1864,7 @@ dependencies = [
 
 [[package]]
 name = "geph5-stats"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
 ]
@@ -1914,7 +1879,7 @@ dependencies = [
  "embed-resource",
  "flume",
  "futures-util",
- "geph5-broker-protocol 0.3.0",
+ "geph5-broker-protocol",
  "geph5-misc-rpc",
  "hex",
  "hmac-sha256",
@@ -2929,23 +2894,7 @@ dependencies = [
 
 [[package]]
 name = "mizaru2"
-version = "0.2.18"
-dependencies = [
- "blake3",
- "blind-rsa-signatures",
- "hex",
- "rand 0.8.6",
- "rayon",
- "serde",
- "stdcode",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "mizaru2"
-version = "0.2.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68b87e3f914af35fb48da999ee3a83dd086d62d57afe5f943a13cc2214d9cbdc"
+version = "0.2.19"
 dependencies = [
  "blake3",
  "blind-rsa-signatures",
@@ -3694,7 +3643,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d0e4f59085d47d8241c88ead0f274e8a0cb551f3625263c05eb8dd897c34218"
 dependencies = [
  "cfg-if",
- "concurrent-queue 2.5.0",
+ "concurrent-queue",
  "hermit-abi",
  "pin-project-lite 0.2.17",
  "rustix",
@@ -4627,7 +4576,7 @@ dependencies = [
 
 [[package]]
 name = "sillad"
-version = "0.2.10"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4644,27 +4593,26 @@ dependencies = [
 
 [[package]]
 name = "sillad"
-version = "0.2.10"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3d09ec45504f7b32f5df33262d2043ce940762374892bce4b38dd3bbb29356e"
+checksum = "b43b61026c3b5f57621692ec8f534494959d75d88837fb0588e2c34516bcbb28"
 dependencies = [
  "anyhow",
- "async-io",
  "async-trait",
  "futures-concurrency",
- "futures-lite 2.6.1",
  "futures-util",
  "libc",
  "pin-project",
  "rand 0.8.6",
- "smol-timeout2",
  "socket2 0.5.10",
+ "tokio",
  "tracing",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
 name = "sillad-meeklike"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-channel 2.5.0",
@@ -4676,7 +4624,7 @@ dependencies = [
  "dashmap",
  "event-listener 5.4.1",
  "futures-concurrency",
- "geph5-rt",
+ "geph5-rt 0.3.1",
  "hex",
  "http-body-util",
  "hyper",
@@ -4686,7 +4634,7 @@ dependencies = [
  "rand 0.8.6",
  "scopeguard",
  "serde",
- "sillad 0.2.10",
+ "sillad 0.3.0",
  "stdcode",
  "tokio",
  "tokio-util",
@@ -4696,25 +4644,21 @@ dependencies = [
 
 [[package]]
 name = "sillad-meeklike"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4670d20f90cc0bb1df1f4bebdc816334d54e5c3a82b5d4d283a0f1137d1729ba"
+checksum = "b02a9d7bfc047bb3925a82d2687a9b8dad2908bedba9f6a317a2298058577828"
 dependencies = [
  "anyhow",
- "async-channel 1.9.0",
- "async-compat",
- "async-io",
- "async-task",
+ "async-channel 2.5.0",
  "async-trait",
  "base64",
- "bipe",
  "blake3",
  "bytes",
  "chacha20poly1305",
  "dashmap",
  "event-listener 5.4.1",
- "futures-lite 2.6.1",
- "futures-util",
+ "futures-concurrency",
+ "geph5-rt 0.3.0",
  "hex",
  "http-body-util",
  "hyper",
@@ -4724,10 +4668,10 @@ dependencies = [
  "rand 0.8.6",
  "scopeguard",
  "serde",
- "sillad 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "smol-timeout2",
- "smolscale",
+ "sillad 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "stdcode",
+ "tokio",
+ "tokio-util",
  "tracing",
  "virta",
 ]
