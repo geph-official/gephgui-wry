@@ -32,7 +32,7 @@ pub async fn download_update_loop() {
         let delay =
             sample_poisson_delay(Duration::from_secs_f64(UPDATE_MEAN_INTERVAL_HOURS * 3600.0));
         tracing::debug!(delay = debug(delay), "delay set for update checking");
-        smol::Timer::after(delay).await;
+        tokio::time::sleep(delay).await;
         match ensure_update_cached().await {
             Ok(reason) => {
                 tracing::debug!(
@@ -153,7 +153,7 @@ async fn run_update(version: &str, path: &Path) -> anyhow::Result<()> {
     // The update prompt is a native modal dialog. On macOS, `rfd` refuses to show
     // a dialog from any thread other than the main one while the app isn't yet a
     // windowed foreground app — so we must NOT offload this to a blocking-pool
-    // thread (e.g. `smol::unblock`), which is exactly what used to panic here.
+    // thread (e.g. `spawn_blocking`), which is exactly what used to panic here.
     //
     // The sole caller, `prompt_cached_update_if_available`, runs via `block_on` on
     // the main thread at startup, before the event loop exists. Showing the dialog
@@ -266,7 +266,7 @@ fn current_version() -> anyhow::Result<Version> {
 }
 
 async fn read_file_sha256(fname: PathBuf) -> anyhow::Result<String> {
-    smol::unblock(move || {
+    geph5_rt::spawn_blocking(move || {
         let bts = std::fs::read(&fname)?;
         anyhow::Ok(hex::encode(hmac_sha256::Hash::hash(&bts)))
     })

@@ -38,10 +38,10 @@ pub fn tunnel_active() -> bool {
 
 /// Background task mirroring `manager::manager_connected()` into `TUNNEL_ACTIVE` ~1s.
 pub fn spawn_state_poll() {
-    smolscale::spawn(async {
+    geph5_rt::spawn(async {
         loop {
             TUNNEL_ACTIVE.store(manager::manager_connected().await, Ordering::Relaxed);
-            smol::Timer::after(Duration::from_secs(1)).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
     })
     .detach();
@@ -134,12 +134,12 @@ pub fn pump_tray_events(tray: &Tray, window: &Window) {
         } else if event.id == *tray.toggle.id() {
             // Connect when disconnected, disconnect when connected.
             if tunnel_active() {
-                smolscale::spawn(async {
+                geph5_rt::spawn(async {
                     let _ = manager::stop_daemon().await;
                 })
                 .detach();
             } else {
-                smolscale::spawn(async {
+                geph5_rt::spawn(async {
                     let _ = manager::reconnect().await;
                 })
                 .detach();
@@ -147,7 +147,7 @@ pub fn pump_tray_events(tray: &Tray, window: &Window) {
         } else if event.id == *tray.quit.id() {
             // Honor the invariant: disconnect first, then exit, so the manager is
             // never left active with no tray.
-            smolscale::spawn(async {
+            geph5_rt::spawn(async {
                 let _ = manager::stop_daemon().await;
                 std::process::exit(0);
             })

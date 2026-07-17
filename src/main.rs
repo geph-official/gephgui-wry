@@ -62,8 +62,8 @@ fn main() -> anyhow::Result<()> {
 
     // DO NOT run the autoupdate logic on flatpak, but otherwise it's good
     if std::env::var("FLATPAK_ID").is_err() {
-        smolscale::block_on(autoupdate::prompt_cached_update_if_available())?;
-        smolscale::spawn(autoupdate::download_update_loop()).detach();
+        geph5_rt::block_on(autoupdate::prompt_cached_update_if_available())?;
+        geph5_rt::spawn(autoupdate::download_update_loop()).detach();
     }
 
     // Make sure the privileged host manager is installed, current, and answering

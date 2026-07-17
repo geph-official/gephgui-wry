@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use geph5_misc_rpc::manager_control::ProxySettings;
 use nanorpc::{JrpcId, JrpcRequest, RpcService, nanorpc_derive};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -22,7 +23,7 @@ struct IpcObject {
 pub fn ipc_handle(ipc_string: String) -> anyhow::Result<()> {
     let ipc: IpcObject = serde_json::from_str(&ipc_string)?;
     tracing::trace!("ipc: {}", ipc_string);
-    smolscale::spawn(async move {
+    geph5_rt::spawn(async move {
         let rpc = IpcService(RpcProtocolImpl).respond_raw(ipc.inner).await;
 
         mt_enqueue(move |wv, _| {
@@ -279,7 +280,7 @@ trait IpcProtocol {
     /// Non-loopback addresses of this machine, for the "listen on all
     /// interfaces" display in the GUI.
     async fn get_lan_addresses(&self) -> Vec<String> {
-        smol::unblock(|| {
+        geph5_rt::spawn_blocking(|| {
             let mut out: Vec<String> = if_addrs::get_if_addrs()
                 .unwrap_or_default()
                 .into_iter()
@@ -324,17 +325,37 @@ pub struct DaemonArgs {
     pub exit: ExitConstraint,
     pub global_vpn: bool,
     /// Local-proxy configuration; `None` means no local proxy ports are bound.
-    pub proxy: Option<ProxyArgs>,
+    /// The JS `ProxyArgs` shape is field-for-field the manager's `ProxySettings`,
+    /// so we deserialize straight into the shared type.
+    pub proxy: Option<ProxySettings>,
+    #[serde(default = "default_allow_lan")]
+    pub allow_lan: bool,
     pub allow_direct: bool,
 }
 
-/// Mirrors the JS `ProxyArgs` (and the manager's `ProxySettings`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProxyArgs {
-    pub autoconf: bool,
-    pub listen_all: bool,
-    pub socks5_port: u16,
-    pub http_port: u16,
+fn default_allow_lan() -> bool {
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn daemon_args_from_older_frontend_preserve_lan_access() {
+        let args: DaemonArgs = serde_json::from_value(serde_json::json!({
+            "secret": "secret",
+            "metadata": null,
+            "prc_whitelist": false,
+            "exit": "auto",
+            "global_vpn": true,
+            "proxy": null,
+            "allow_direct": false
+        }))
+        .unwrap();
+
+        assert!(args.allow_lan);
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

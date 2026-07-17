@@ -20,6 +20,9 @@
 //!
 //! The orchestration (detect → dialog → elevate → result) is generic; only the
 //! command wrapping and the post-install relaunch differ between native and Flatpak.
+//! On Flatpak, when a fresh sandbox is needed to pick up `/run/geph`, we hand off to
+//! a new instance automatically via a host-side `flatpak run`; the "reopen Geph"
+//! dialog remains only as a fallback when that handoff can't be arranged.
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -97,7 +100,9 @@ pub fn ensure_manager() -> bool {
     if is_flatpak && !was_reachable {
         // Fresh install: `/run/geph` did not exist when this sandbox started, so the
         // `--filesystem=/run/geph:ro` bind-mount missed it. A relaunch picks it up.
-        relaunch_dialog();
+        if !auto_relaunch() {
+            relaunch_dialog();
+        }
         return false;
     }
 
@@ -110,7 +115,9 @@ pub fn ensure_manager() -> bool {
         std::thread::sleep(Duration::from_millis(250));
     }
     if is_flatpak {
-        relaunch_dialog();
+        if !auto_relaunch() {
+            relaunch_dialog();
+        }
         return false;
     }
     // Native: continue anyway; the GUI surfaces its own "can't reach manager" error.
@@ -119,7 +126,7 @@ pub fn ensure_manager() -> bool {
 
 /// Can we reach the manager's control socket right now?
 fn reachable() -> bool {
-    smolscale::block_on(crate::manager::manager_reachable())
+    geph5_rt::block_on(crate::manager::manager_reachable())
 }
 
 /// On Flatpak, is the host-installed manager a different build than the one we bundle?
@@ -266,7 +273,41 @@ fn error_retry_dialog(err: &str) -> bool {
     matches!(result, MessageDialogResult::Custom(label) if label == retry)
 }
 
-/// Tell the user setup is done and they should reopen Geph (Flatpak first run).
+/// Hand this session off to a fresh Flatpak instance, whose sandbox will bind-mount
+/// the now-existing `/run/geph`. Returns whether the handoff was scheduled; the
+/// caller must exit promptly either way, since the helper launches the new instance
+/// only once this one is gone.
+fn auto_relaunch() -> bool {
+    let Some(app_id) = std::env::var_os("FLATPAK_ID") else {
+        return false;
+    };
+    // The relaunch has to be driven from the host: only a brand-new `flatpak run`
+    // gets a sandbox whose `/run/geph` bind-mount exists. Two timing constraints
+    // shape the shell helper:
+    //   * The subshell is backgrounded so the outer `sh` — and with it our
+    //     flatpak-spawn child — returns immediately, instead of tethering this
+    //     dying sandbox to the new instance's whole lifetime.
+    //   * The new instance can only win the single-instance port (main.rs) after
+    //     this process exits, and it *quits* if it loses that race. So the helper
+    //     polls `flatpak ps` until our instance is gone (bounded at ~10s) before
+    //     launching the replacement.
+    const HANDOFF: &str = r#"(
+        for _ in $(seq 40); do
+            flatpak ps --columns=application 2>/dev/null | grep -qF "$1" || break
+            sleep 0.25
+        done
+        exec flatpak run "$1" >/dev/null 2>&1
+    ) &"#;
+    Command::new("flatpak-spawn")
+        .args(["--host", "sh", "-c", HANDOFF, "sh"])
+        .arg(&app_id)
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+/// Tell the user setup is done and they should reopen Geph — fallback for when
+/// `auto_relaunch` couldn't schedule the handoff (Flatpak only).
 fn relaunch_dialog() {
     let (title, body) = if is_chinese() {
         ("设置完成", "迷雾通后台服务已安装。请重新打开迷雾通以继续。")
