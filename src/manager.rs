@@ -17,7 +17,9 @@ use std::{future::Future, sync::LazyLock, time::Duration};
 
 use anyhow::Context;
 use geph5_broker_protocol::ExitConstraint;
-use geph5_misc_rpc::manager_control::{self, GephCtlClient, GephCtlError, SessionContext};
+use geph5_misc_rpc::manager_control::{
+    self, GephCtlClient, GephCtlError, SessionContext, TunnelSettings,
+};
 use geph5_rt::TimeoutExt;
 use isocountry::CountryCode;
 use nanorpc::{JrpcRequest, JrpcResponse, RpcTransport};
@@ -81,35 +83,30 @@ fn exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<ExitCons
     })
 }
 
-/// Push the GUI's `DaemonArgs` into the manager's settings (secret, exit,
-/// full-tunnel VPN mode, local-proxy config, LAN access, and allow-direct) without
-/// yet connecting. Shared by start/restart.
-async fn push_settings(args: &DaemonArgs) -> anyhow::Result<()> {
-    let c = client();
-    // login persists + validates the secret; harmless if unchanged.
-    ctl(c.login(args.secret.clone())).await?;
-    ctl(c.set_exit_constraint(exit_constraint(&args.exit)?)).await?;
-    // Full-tunnel VPN mode (vs. local proxy). Must be pushed before connect so
-    // the manager brings the tunnel up in the right mode.
-    ctl(c.set_vpn_mode(args.global_vpn)).await?;
-    // Local-proxy config; `None` means the manager listens on no ports at all.
-    ctl(c.set_proxy_settings(args.proxy.clone(), session())).await?;
-    ctl(c.set_allow_lan(args.allow_lan)).await?;
-    ctl(c.set_allow_direct(args.allow_direct)).await?;
-    Ok(())
+fn tunnel_settings(args: &DaemonArgs) -> anyhow::Result<TunnelSettings> {
+    Ok(TunnelSettings {
+        exit_constraint: exit_constraint(&args.exit)?,
+        proxy: args.proxy.clone(),
+        vpn: args.global_vpn,
+        allow_lan: args.allow_lan,
+        allow_direct: args.allow_direct,
+        passthrough_china: args.prc_whitelist,
+        session_metadata: args.metadata.clone(),
+    })
 }
 
 pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    push_settings(&args).await?;
+    // Credential validation is separate from the coherent tunnel snapshot.
+    ctl(client().login(args.secret.clone())).await?;
+    ctl(client().apply_settings(tunnel_settings(&args)?, session())).await?;
     ctl(client().connect(session())).await?;
     Ok(())
 }
 
 pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    // The manager is persistent; "restart" is just pushing new settings and
-    // (re)connecting. connect() restarts the child with the new exit.
-    push_settings(&args).await?;
-    ctl(client().connect(session())).await?;
+    // One coherent snapshot; the manager automatically performs exactly one
+    // full reconciliation when already connected.
+    ctl(client().apply_settings(tunnel_settings(&args)?, session())).await?;
     Ok(())
 }
 
@@ -131,7 +128,10 @@ pub async fn reconnect() -> anyhow::Result<()> {
 /// connected, reconnects to the new exit WITHOUT a leak window (the kill switch
 /// stays up; only the engine child is restarted).
 pub async fn set_exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::Result<()> {
-    ctl(client().set_exit_constraint(exit_constraint(exit)?)).await?;
+    let view = ctl(client().get_settings()).await?;
+    let mut settings = view.tunnel_settings();
+    settings.exit_constraint = exit_constraint(exit)?;
+    ctl(client().apply_settings(settings, session())).await?;
     Ok(())
 }
 
