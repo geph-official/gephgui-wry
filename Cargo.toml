@@ -47,14 +47,14 @@ rfd = { version = "=0.15.0", default-features = false, features = [
 async-trait = "0.1.89"
 tray-icon = "0.24"
 thiserror = "2.0.18"
-geph5-broker-protocol = "0.3.4"
+geph5-broker-protocol = "0.3.5"
 isocountry = "0.3.2"
 hmac-sha256 = "1.1.14"
 hex = "0.4.3"
 sys-locale = "0.3.2"
 tiny_http = "0.12.0"
-geph5-misc-rpc = "0.3.4"
-geph5-rt = "0.3.4"
+geph5-misc-rpc = "0.3.5"
+geph5-rt = "0.3.5"
 tokio = { version = "1.52", features = ["time"] }
 
 [target.'cfg(unix)'.dependencies]
