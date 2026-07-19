@@ -96,8 +96,13 @@ fn tunnel_settings(args: &DaemonArgs) -> anyhow::Result<TunnelSettings> {
 }
 
 pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    // Credential validation is separate from the coherent tunnel snapshot.
-    ctl(client().login(args.secret.clone())).await?;
+    // Hand the manager the secret WITHOUT re-validating it against the broker.
+    // The GUI already validated the secret at its login screen, so a broker
+    // round-trip here would only re-check something known-good while blocking the
+    // connect path on a slow or dead network. `set_secret` is purely local; the
+    // tunnel engine authenticates the secret itself as it connects, and a bad
+    // secret surfaces as a normal connection failure.
+    ctl(client().set_secret(args.secret.clone())).await?;
     ctl(client().apply_settings(tunnel_settings(&args)?, session())).await?;
     ctl(client().connect(session())).await?;
     Ok(())
