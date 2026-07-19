@@ -1695,6 +1695,8 @@ dependencies = [
 [[package]]
 name = "geph5-broker-protocol"
 version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13562e65211b503e7e179bd6f8597b08c97b4e686492cc91d5a6a2dd71065aba"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1720,7 +1722,9 @@ dependencies = [
 
 [[package]]
 name = "geph5-misc-rpc"
-version = "0.3.6"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6af50d17e99ee6136f8bcfaaa5599da6db28ddd1c6cdbeadb96e6ed98279d80"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1750,6 +1754,8 @@ dependencies = [
 [[package]]
 name = "geph5-rt"
 version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db14c0bac9c452c4b51a99bfc1462a3b33eec4df32c35ff065737b85f8be4ba1"
 dependencies = [
  "async-channel",
  "bytes",
@@ -1763,6 +1769,8 @@ dependencies = [
 [[package]]
 name = "geph5-stats"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be4b221ec59c737ffa82e3de1af5b4765ab17180307c51017741dbbbacdedebf"
 dependencies = [
  "serde",
 ]
@@ -2785,6 +2793,8 @@ dependencies = [
 [[package]]
 name = "mizaru2"
 version = "0.2.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f44143ed35f0beac4bb960c5aaab6070db8a9721b35efbcc0bfa35c33e9fe7eb"
 dependencies = [
  "blake3",
  "blind-rsa-signatures",
@@ -2856,6 +2866,8 @@ dependencies = [
 [[package]]
 name = "nanorpc-sillad"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2428da6dca9998dd9f142eef020c8d5705c8724989add5bfbbeee352ae705d9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4450,6 +4462,8 @@ dependencies = [
 [[package]]
 name = "sillad"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b43b61026c3b5f57621692ec8f534494959d75d88837fb0588e2c34516bcbb28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4467,6 +4481,8 @@ dependencies = [
 [[package]]
 name = "sillad-meeklike"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b02a9d7bfc047bb3925a82d2687a9b8dad2908bedba9f6a317a2298058577828"
 dependencies = [
  "anyhow",
  "async-channel",
