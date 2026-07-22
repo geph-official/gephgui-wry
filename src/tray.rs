@@ -128,9 +128,20 @@ pub fn pump_tray_events(tray: &Tray, window: &Window) {
         tray.toggle.set_text(desired_label);
     }
 
+    // Coalesce every "show the window" request in this drain into a single
+    // `show_window` at the end. A fast double-click on the tray delivers two
+    // `Click{Up}` events (plus a `DoubleClick`) in one drain; calling
+    // `set_visible`/`set_focus` twice back-to-back here re-enters tao's Windows
+    // event-loop runner (the second show/focus fires while the first is still
+    // pumping WM_ACTIVATE/WM_SETFOCUS/... messages) and panics with
+    // `already borrowed: BorrowMutError`. With `panic = "abort"` that panic takes
+    // the whole process down — window and tray vanish together. One show per drain
+    // makes a double-click behave like the already-safe single-click.
+    let mut want_show = false;
+
     while let Ok(event) = MenuEvent::receiver().try_recv() {
         if event.id == *tray.show.id() {
-            show_window(window);
+            want_show = true;
         } else if event.id == *tray.toggle.id() {
             // Connect when disconnected, disconnect when connected.
             if tunnel_active() {
@@ -162,14 +173,29 @@ pub fn pump_tray_events(tray: &Tray, window: &Window) {
             ..
         } = event
         {
-            show_window(window);
+            want_show = true;
         }
+    }
+
+    if want_show {
+        show_window(window);
     }
 }
 
+/// Bring the window to the foreground. Guarded so each native call is a no-op when
+/// already in the desired state: this both cuts the message churn that feeds the
+/// re-entrancy panic (see `pump_tray_events`) and keeps the `__show` single-instance
+/// path cheap when the window is already up.
 fn show_window(window: &Window) {
-    window.set_visible(true);
-    window.set_focus();
+    if window.is_minimized() {
+        window.set_minimized(false);
+    }
+    if !window.is_visible() {
+        window.set_visible(true);
+    }
+    if !window.is_focused() {
+        window.set_focus();
+    }
 }
 
 /// Tray-menu localization, covering the same languages the web frontend supports
