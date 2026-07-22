@@ -18,7 +18,7 @@ use tao::platform::macos::{ActivationPolicy, EventLoopWindowTargetExtMacOS};
 use tray_icon::menu::{Menu, PredefinedMenuItem, Submenu};
 
 mod autoupdate;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod bootstrap;
 mod manager;
 mod fakefs;
@@ -68,8 +68,9 @@ fn main() -> anyhow::Result<()> {
 
     // Make sure the privileged host manager is installed, current, and answering
     // before we bring up the webview that talks to it. May show a native dialog and
-    // elevate via pkexec, or ask for a relaunch; returns false if we should exit now.
-    #[cfg(target_os = "linux")]
+    // elevate via pkexec (Linux) or UAC (Windows), or ask for a relaunch; returns
+    // false if we should exit now.
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     if !bootstrap::ensure_manager() {
         return Ok(());
     }

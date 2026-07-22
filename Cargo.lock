@@ -1812,6 +1812,7 @@ dependencies = [
  "tracing-subscriber",
  "tray-icon",
  "webbrowser",
+ "windows-sys 0.59.0",
  "winres",
  "wry",
 ]

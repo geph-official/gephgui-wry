@@ -143,7 +143,7 @@ pub async fn set_exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::R
 /// Whether the manager's control endpoint is up and answering at all (regardless
 /// of connection state). Used by the startup bootstrap to decide whether the host
 /// manager needs to be installed/started. Short timeout: this is polled.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub async fn manager_reachable() -> bool {
     (client().get_settings().timeout(Duration::from_secs(2)).await)
         .is_some_and(|r| matches!(r, Ok(Ok(_))))
