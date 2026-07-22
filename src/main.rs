@@ -96,10 +96,19 @@ fn main() -> anyhow::Result<()> {
                     .first_or_octet_stream()
                     .to_string();
 
-                let response = tiny_http::Response::from_data(resp.data).with_header(
-                    tiny_http::Header::from_bytes(&b"Content-Type"[..], mime_type.as_bytes())
-                        .unwrap(),
-                );
+                // no-cache: the webview's HTTP cache outlives app upgrades, and a
+                // cached index.html referencing hashed chunks from a previous
+                // version would 404 and blank the UI. Everything is served from
+                // memory anyway, so revalidation costs nothing.
+                let response = tiny_http::Response::from_data(resp.data)
+                    .with_header(
+                        tiny_http::Header::from_bytes(&b"Content-Type"[..], mime_type.as_bytes())
+                            .unwrap(),
+                    )
+                    .with_header(
+                        tiny_http::Header::from_bytes(&b"Cache-Control"[..], &b"no-cache"[..])
+                            .unwrap(),
+                    );
 
                 request.respond(response).ok();
             } else {
