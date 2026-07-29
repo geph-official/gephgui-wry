@@ -18,6 +18,7 @@
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
+    cell::Cell,
 };
 
 use tao::window::Window;
@@ -29,6 +30,19 @@ use tray_icon::{
 use crate::manager;
 
 static TUNNEL_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+// tray ui status enum
+/// Current VPN state shown by tray UI.
+///
+/// NOTE:
+/// This is **UI state only**.
+/// Do NOT store business logic here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrayState {
+    Disconnected,
+    Connecting,
+    Connected,
+}
 
 /// Last-polled tunnel-active (connecting/connected) state. Read synchronously by
 /// the close handler to decide hide-to-tray vs. exit.
@@ -51,14 +65,30 @@ pub fn spawn_state_poll() {
 /// event loop) plus the menu items we toggle/identify on click.
 pub struct Tray {
     _tray: TrayIcon,
+
+    last_state: Cell<TrayState>, // a Single Source of Truth tray state cache to manage tray ui refresh
+
+    // color icon and gray icon for connection status
+    color_icon: Icon,
+    gray_icon: Icon,
+
     show: MenuItem,
+
+    status: MenuItem, // Add a menu item to show connection status - e.g. disconnected/connecting/connected/error
+    
     /// A single Connect/Disconnect item whose label tracks the manager state, so
     /// the menu shows only the relevant action instead of both with one greyed out.
     toggle: MenuItem,
     quit: MenuItem,
+
     /// Localized labels for the two `toggle` states.
     connect_label: &'static str,
     disconnect_label: &'static str,
+
+    // Localized labels for the connection states
+    disconnected_label: &'static str,
+    connecting_label: &'static str,
+    connected_label: &'static str,
 }
 
 /// Build the tray icon and its context menu. Must be called on the main thread
@@ -72,19 +102,28 @@ pub fn build_tray() -> anyhow::Result<Tray> {
     // with the manager state. Starts as "Connect" (disconnected) and is corrected
     // on the first poll.
     let toggle = MenuItem::new(labels.connect, true, None);
+    let status = MenuItem::new(labels.disconnected, true, None); // 
     let quit = MenuItem::new(labels.quit, true, None);
 
     let menu = Menu::new();
     menu.append(&show)?;
     menu.append(&PredefinedMenuItem::separator())?;
+
+    // Add a menu item to show connection status - e.g. disconnected/connecting/connected/error 
+    menu.append(&status)?;
+    status.set_enabled(false);  //set status to non-clickable
+
     menu.append(&toggle)?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&quit)?;
 
     #[allow(unused_mut)]
-    let mut builder = TrayIconBuilder::new()
+    let color_icon = load_icon(TrayIconType::Color)?;
+    let gray_icon = load_icon(TrayIconType::Gray)?;
+
+    let builder = TrayIconBuilder::new()
         .with_tooltip("Geph")
-        .with_icon(load_icon()?)
+        .with_icon(gray_icon.clone())
         .with_menu(Box::new(menu));
 
     // Under Flatpak, the appindicator icon is passed to the host's tray daemon
@@ -105,11 +144,18 @@ pub fn build_tray() -> anyhow::Result<Tray> {
 
     Ok(Tray {
         _tray: tray,
+        last_state: Cell::new(TrayState::Disconnected),  // disconnected as default state at App startup 
+        color_icon,
+        gray_icon,
         show,
+        status,
         toggle,
         quit,
         connect_label: labels.connect,
         disconnect_label: labels.disconnect,
+        disconnected_label: labels.disconnected,
+        connecting_label: labels.connecting,
+        connected_label: labels.connected,
     })
 }
 
@@ -117,16 +163,6 @@ pub fn build_tray() -> anyhow::Result<Tray> {
 /// `MainEventsCleared` arm: tray-icon posts its window messages to this same
 /// thread's queue, so every click wakes the loop and lands here.
 pub fn pump_tray_events(tray: &Tray, window: &Window) {
-    let active = tunnel_active();
-    // Show exactly one of Connect / Disconnect, matching the manager state.
-    let desired_label = if active {
-        tray.disconnect_label
-    } else {
-        tray.connect_label
-    };
-    if tray.toggle.text().as_str() != desired_label {
-        tray.toggle.set_text(desired_label);
-    }
 
     // Coalesce every "show the window" request in this drain into a single
     // `show_window` at the end. A fast double-click on the tray delivers two
@@ -180,7 +216,75 @@ pub fn pump_tray_events(tray: &Tray, window: &Window) {
     if want_show {
         show_window(window);
     }
+
+    update_tray_ui(
+        tray,
+        current_tray_state(),
+    );
 }
+
+/// Update every tray UI element according to VPN state.
+///
+/// This is the ONLY entrance of tray UI refresh.
+pub fn update_tray_ui(
+    tray: &Tray,
+    state: TrayState,
+) {
+
+    // Only update tray_ui when tray state changes
+    if tray.last_state.get() == state {
+        return;
+    }
+
+    tray.last_state.set(state);
+
+    update_status_item(tray, state);
+    update_toggle_item(tray, state);
+    update_icon(tray, state);
+}
+
+// update connection status in tray menu
+fn update_status_item(
+    tray: &Tray,
+    state: TrayState,
+) {
+
+    let desired = match state {
+        TrayState::Disconnected => tray.disconnected_label,
+        TrayState::Connecting   => tray.connecting_label,
+        TrayState::Connected    => tray.connected_label,
+    };
+
+    tray.status.set_text(desired);
+
+}
+
+
+// update toggle item for connection
+fn update_toggle_item(
+    tray: &Tray,
+    state: TrayState,
+) {
+
+    let desired = match state {
+        TrayState::Disconnected => tray.connect_label,
+        TrayState::Connecting => tray.disconnect_label,
+        TrayState::Connected => tray.disconnect_label,
+    };
+    tray.toggle.set_text(desired);
+
+}
+
+// get connection status from manager for current_tray_state
+fn current_tray_state() -> TrayState {
+    if geph5_rt::block_on(manager::manager_connected()) {
+        TrayState::Connected
+    } else {
+        TrayState::Disconnected
+    }
+}
+
+
 
 /// Bring the window to the foreground. Guarded so each native call is a no-op when
 /// already in the desired state: this both cuts the message churn that feeds the
@@ -244,6 +348,9 @@ mod l10n {
         pub connect: &'static str,
         pub disconnect: &'static str,
         pub quit: &'static str,
+        pub disconnected: &'static str,
+        pub connecting: &'static str,
+        pub connected: &'static str,
     }
 
     pub fn labels(lang: Lang) -> Labels {
@@ -253,48 +360,72 @@ mod l10n {
                 connect: "Connect",
                 disconnect: "Disconnect",
                 quit: "Quit",
+                disconnected: "Disconnected",
+                connecting: "Connecting...",
+                connected: "Connected",
             },
             Lang::ZhCn => Labels {
                 show: "显示 Geph",
                 connect: "连接",
                 disconnect: "断开",
                 quit: "退出",
+                disconnected: "已断开",
+                connecting: "连接中",
+                connected: "已连接",
             },
             Lang::ZhTw => Labels {
                 show: "顯示 Geph",
                 connect: "連接",
                 disconnect: "斷開",
                 quit: "結束",
+                disconnected: "未連線",
+                connecting: "連線中...",
+                connected: "已連線",
             },
             Lang::Fa => Labels {
                 show: "نمایش Geph",
                 connect: "اتصال",
                 disconnect: "قطع اتصال",
                 quit: "خروج",
+                disconnected: "قطع شده",
+                connecting: "در حال اتصال...",
+                connected: "متصل",
             },
             Lang::Ar => Labels {
                 show: "إظهار Geph",
                 connect: "اتصال",
                 disconnect: "قطع الاتصال",
                 quit: "خروج",
+                disconnected: "غير متصل",
+                connecting: "جارٍ الاتصال...",
+                connected: "متصل",
             },
             Lang::Ru => Labels {
                 show: "Показать Geph",
                 connect: "Подключить",
                 disconnect: "Отключить",
                 quit: "Выход",
+                disconnected: "Не подключено",
+                connecting: "Подключение...",
+                connected: "Подключено",
             },
             Lang::Es => Labels {
                 show: "Mostrar Geph",
                 connect: "Conectar",
                 disconnect: "Desconectar",
                 quit: "Salir",
+                disconnected: "Desconectado",
+                connecting: "Conectando...",
+                connected: "CConectado",
             },
             Lang::Uk => Labels {
                 show: "Показати Geph",
                 connect: "Підключити",
                 disconnect: "Відключити",
                 quit: "Вийти",
+                disconnected: "Не підключено",
+                connecting: "Підключення...",
+                connected: "Підключено",
             },
         }
     }
@@ -302,10 +433,57 @@ mod l10n {
 
 /// Decode the embedded logo PNG into a tray icon (mirrors the window-icon decode
 /// in main.rs, but produces `tray_icon::Icon` rather than `tao::window::Icon`).
-fn load_icon() -> anyhow::Result<Icon> {
-    let mut reader = png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref()).read_info()?;
+
+// Add an enum for icon type (gray or color or others)
+enum TrayIconType {
+    Color,
+    Gray,
+
+    //reserve for blinking icon to show "connecting" state in future
+}
+
+// new load_icon for different TrayIconType
+fn load_icon(kind: TrayIconType) -> anyhow::Result<Icon> {
+    let png: &[u8] = match kind {
+        TrayIconType::Color =>
+            include_bytes!("logo-naked-32px.png").as_slice(),
+
+        TrayIconType::Gray =>
+            include_bytes!("logo-naked-gray-32px.png").as_slice(),
+    };
+
+    let mut reader =
+        png::Decoder::new(png.as_ref()).read_info()?;
+
     let mut buf = vec![0; reader.output_buffer_size()];
     reader.next_frame(&mut buf)?;
-    let icon = Icon::from_rgba(buf, reader.info().width, reader.info().height)?;
-    Ok(icon)
+
+    Ok(Icon::from_rgba(
+        buf,
+        reader.info().width,
+        reader.info().height,
+    )?)
+}
+
+// Update icon accordin to connection status
+fn update_icon(
+    tray: &Tray,
+    state: TrayState,
+) {
+
+    let icon = match state {
+
+        TrayState::Disconnected =>
+            tray.gray_icon.clone(),
+
+        TrayState::Connecting =>
+            tray.gray_icon.clone(),
+
+        TrayState::Connected =>
+            tray.color_icon.clone(),
+
+    };
+
+    let _ = tray._tray.set_icon(Some(icon));
+
 }
