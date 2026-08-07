@@ -13,14 +13,16 @@
 //! `geph5_misc_rpc::manager_control` — the same definitions the manager and the
 //! `geph` CLI compile against, so the endpoint and the wire types cannot drift.
 
-use std::{future::Future, sync::LazyLock};
+use std::{future::Future, sync::LazyLock, time::Duration};
 
-use geph5_broker_protocol::ExitConstraint;
+use anyhow::Context;
+use geph5_broker_protocol::{ExitConstraint};
 use geph5_misc_rpc::manager_control::{
     self, GephCtlClient, GephCtlError, SessionContext, TunnelSettings,
 };
+use geph5_rt::TimeoutExt;
 use isocountry::CountryCode;
-use nanorpc::{JrpcRequest, JrpcResponse, RpcTransport};
+use nanorpc::{JrpcRequest, JrpcResponse, RpcTransport, JrpcId};
 use serde_json::{Value, json};
 
 use crate::rpc::DaemonArgs;
@@ -33,12 +35,16 @@ fn client() -> &'static GephCtlClient {
     &CLIENT
 }
 
-/// Await a `GephCtl` call, flattening the transport and application error
-/// layers into one `anyhow` error.
+/// Await a `GephCtl` call with a timeout, flattening the transport and
+/// application error layers into one `anyhow` error.
 async fn ctl<T>(
     fut: impl Future<Output = Result<Result<T, String>, GephCtlError<anyhow::Error>>>,
 ) -> anyhow::Result<T> {
-    match fut.await {
+    match fut
+        .timeout(Duration::from_secs(60))
+        .await
+        .context("geph manager call timed out")?
+    {
         Ok(Ok(v)) => Ok(v),
         Ok(Err(msg)) => Err(anyhow::anyhow!(msg)),
         Err(e) => Err(anyhow::anyhow!("could not reach the geph manager: {e:?}")),
@@ -134,32 +140,86 @@ pub async fn set_exit_constraint(exit: &crate::rpc::ExitConstraint) -> anyhow::R
     Ok(())
 }
 
-/// Whether the manager's control endpoint is up and answering at all (regardless
-/// of connection state). The raw `ping` call is intentionally lock-free in the
-/// manager and never reaches an engine or the network. We do not turn elapsed
-/// time into a false "dead" result: only a definite transport/RPC failure does.
-#[cfg(any(unix, windows))]
-pub async fn manager_reachable() -> bool {
+/// Get tunnel settings for access and control for tray menu
+pub async fn tray_get_tunnel_settings() -> anyhow::Result<TunnelSettings> {
+    let view = ctl(client().get_settings()).await?;
+    Ok(view.tunnel_settings())
+}
+
+/// Apply tunnel_settings and exit_constraint from changes by tray menu actions, which should trigger the reconnect 
+pub async fn tray_apply_tunnel_settings(settings: TunnelSettings) -> anyhow::Result<()> {
+    ctl(client().apply_settings(settings, session())).await?;
+    Ok(())
+}
+
+/// Get conn_info for tray UI
+pub async fn tray_get_conn_info(
+) -> anyhow::Result<geph5_misc_rpc::client_control::ConnInfo> {
+
     let req = JrpcRequest {
         jsonrpc: "2.0".into(),
-        method: "ping".into(),
+        method: "conn_info".into(),
         params: vec![],
-        id: nanorpc::JrpcId::Number(0),
+        id: JrpcId::String("tray-status".into()),
     };
-    match manager_control::manager_control_transport()
-        .call_raw(req)
-        .await
-    {
-        Ok(resp) => resp.error.is_none(),
-        Err(_) => false,
+
+    let resp = daemon_rpc(req).await?;
+
+    match resp.result {
+
+        Some(value) => {
+            let info =
+                serde_json::from_value(value)?;
+
+            Ok(info)
+        }
+
+        None => {
+            Err(anyhow::anyhow!("conn_info returned empty result"))
+        }
     }
+}
+
+/// Get net_status (exit list) for tray UI 
+pub async fn tray_get_net_status() -> anyhow::Result<geph5_broker_protocol::NetStatus>
+{
+    let req = JrpcRequest {
+        jsonrpc: "2.0".into(),
+        method: "net_status".into(),
+        params: vec![],
+        id: JrpcId::String("tray-server-list".into()),
+    };
+
+    let resp = daemon_rpc(req).await?;
+
+    match resp.result {
+        Some(value) => {
+            Ok(serde_json::from_value(value)?)
+        }
+
+        None => {
+            Err(anyhow::anyhow!(
+                "net_status returned empty result"
+            ))
+        }
+    }
+}
+
+/// Whether the manager's control endpoint is up and answering at all (regardless
+/// of connection state). Used by the startup bootstrap to decide whether the host
+/// manager needs to be installed/started. Short timeout: this is polled.
+#[cfg(any(unix, windows))]
+pub async fn manager_reachable() -> bool {
+    (client().get_settings().timeout(Duration::from_secs(2)).await)
+        .is_some_and(|r| matches!(r, Ok(Ok(_))))
 }
 
 /// Whether the user currently wants the tunnel up (mirrors the old "is the
 /// manager process running" semantics, which only existed while connected).
+/// Short timeout: the tray polls this once a second.
 pub async fn manager_connected() -> bool {
-    match client().get_settings().await {
-        Ok(Ok(settings)) => settings.connected,
+    match client().get_settings().timeout(Duration::from_secs(2)).await {
+        Some(Ok(Ok(settings))) => settings.connected,
         _ => false,
     }
 }
@@ -177,7 +237,9 @@ pub async fn daemon_rpc(inner: JrpcRequest) -> anyhow::Result<JrpcResponse> {
     };
     let mut resp = manager_control::manager_control_transport()
         .call_raw(req)
-        .await?;
+        .timeout(Duration::from_secs(10))
+        .await
+        .context("daemon_rpc timed out")??;
     // The manager's `daemon_rpc` result/error already reflects the inner call.
     resp.id = inner.id;
     Ok(resp)

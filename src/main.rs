@@ -205,7 +205,9 @@ fn main() -> anyhow::Result<()> {
     // Geph.app (while working fine when the binary is run from a terminal, where
     // the policy change is a no-op). The poll task keeps `tray::tunnel_active()`
     // fresh for the close handler.
+ 
     tray::spawn_state_poll();
+
     let mut tray: Option<tray::Tray> = None;
 
     event_loop.run(move |event, _event_loop_target, control_flow| {
@@ -250,13 +252,11 @@ fn main() -> anyhow::Result<()> {
                 // it's connecting/connected we only hide to tray; we exit (taking the
                 // tray with us) only once it's disconnected. The tray's "Quit" item
                 // disconnects first, then exits, preserving the same invariant.
-                if tray::tunnel_active() {
-                    println!("tunnel active; hiding GUI to tray instead of exiting");
-                    window.set_visible(false);
-                } else {
-                    println!("tunnel down; closing the GUI");
-                    *control_flow = ControlFlow::Exit;
-                }
+                
+                // Hide window no matter if tunnel active or not
+                // Can add a option in Geph settings to switch the hide mode if needed
+                println!("hiding GUI to tray instead of exiting regardless of tunnel active or not");
+                window.set_visible(false);
             }
             Event::MainEventsCleared => {
                 if let Some(tray) = &tray {
@@ -269,6 +269,13 @@ fn main() -> anyhow::Result<()> {
                 // It's preferable for applications that do not render continuously to render in
                 // this event rather than in MainEventsCleared, since rendering in here allows
                 // the program to gracefully handle redraws requested by the OS.
+            }
+
+            // Click the Icon in MacOS dock to open hidden window
+            #[cfg(target_os = "macos")]
+            Event::Reopen { .. } => {
+                window.set_visible(true);
+                window.set_focus();
             }
             _ => (),
         }
