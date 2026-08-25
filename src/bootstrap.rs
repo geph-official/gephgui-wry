@@ -18,15 +18,15 @@
 //!         via `flatpak-spawn --host pkexec`. All install/cleanup *policy* lives in
 //!         that bundled script (owned by gephgui-pkg), not here and not in geph5.
 //!
-//! Windows logic: the installer already registered the "Geph Manager" scheduled task
-//! (boot-triggered, SYSTEM), so normally the manager is up before any user logs in.
-//! But AV / "PC cleaner" tools sometimes delete autostart scheduled tasks outright;
+//! Windows logic: the installer already registered the Geph Manager Windows service
+//! (automatic, LocalSystem), so normally the manager is up before any user logs in.
+//! But AV / "PC cleaner" tools sometimes disable or delete background services;
 //! without a repair path that breaks Geph permanently until a reinstall. When the
 //! manager pipe definitively fails, we run the same orchestration with UAC in place
 //! of pkexec: explain → `ShellExecuteExW` ("runas") on the sibling
 //! `geph5.exe register-manager` → wait for the named pipe to answer. Since the GUI
 //! autostarts at every logon ({commonstartup} shortcut in setup.iss), this heals a
-//! deleted task at the next logon or app launch.
+//! damaged registration at the next logon or app launch.
 //!
 //! The orchestration (detect → dialog → elevate → result) is generic; only the
 //! command wrapping and the post-install relaunch differ between native and Flatpak.
@@ -58,12 +58,24 @@ pub fn ensure_manager() -> bool {
     }
 }
 
-/// Windows: repair a missing/dead "Geph Manager" scheduled task by re-running
+/// Windows: repair a missing/dead Geph Manager service by re-running
 /// `geph5.exe register-manager` elevated. See the module docs for why this exists.
 #[cfg(target_os = "windows")]
 fn ensure_manager_windows() -> bool {
     if reachable() {
         return true;
+    }
+
+    // A running/start-pending service may simply be between SCM recovery and
+    // binding the control pipe. Give that supervised recovery a bounded chance
+    // before asking the user for elevation.
+    if manager_service_active() {
+        for _ in 0..100 {
+            std::thread::sleep(Duration::from_millis(50));
+            if reachable() {
+                return true;
+            }
+        }
     }
 
     if !explain_dialog() {
@@ -89,6 +101,31 @@ fn ensure_manager_windows() -> bool {
         std::thread::sleep(Duration::from_millis(50));
     }
     true
+}
+
+#[cfg(target_os = "windows")]
+fn manager_service_active() -> bool {
+    use windows_service::{
+        service::{ServiceAccess, ServiceState},
+        service_manager::{ServiceManager, ServiceManagerAccess},
+    };
+
+    let Ok(manager) = ServiceManager::local_computer(None::<&str>, ServiceManagerAccess::CONNECT)
+    else {
+        return false;
+    };
+    let Ok(service) = manager.open_service("GephManager", ServiceAccess::QUERY_STATUS) else {
+        return false;
+    };
+    service
+        .query_status()
+        .map(|status| {
+            matches!(
+                status.current_state,
+                ServiceState::Running | ServiceState::StartPending
+            )
+        })
+        .unwrap_or(false)
 }
 
 /// Run the sibling `geph5.exe register-manager` elevated via the UAC "runas" verb
@@ -145,7 +182,10 @@ fn do_install_windows() -> anyhow::Result<()> {
         CloseHandle(info.hProcess);
         code
     };
-    anyhow::ensure!(exit_code == 0, "register-manager exited with code {exit_code}");
+    anyhow::ensure!(
+        exit_code == 0,
+        "register-manager exited with code {exit_code}"
+    );
     Ok(())
 }
 

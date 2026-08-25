@@ -9,7 +9,8 @@ use webbrowser::open_browser;
 use crate::{
     WINDOW_HEIGHT, WINDOW_WIDTH,
     manager::{
-        daemon_rpc, manager_connected, restart_daemon, set_exit_constraint, start_daemon, stop_daemon,
+        daemon_rpc, manager_connected, restart_daemon, set_exit_constraint, start_daemon,
+        stop_daemon,
     },
     mtbus::mt_enqueue,
 };
@@ -72,7 +73,9 @@ trait IpcProtocol {
     /// manager (no traffic escapes during the switch). If disconnected, just
     /// persists the new exit for the next connect.
     async fn set_exit_constraint(&self, exit: ExitConstraint) -> Result<(), String> {
-        set_exit_constraint(&exit).await.map_err(|s| format!("{:?}", s))
+        set_exit_constraint(&exit)
+            .await
+            .map_err(|s| format!("{:?}", s))
     }
 
     /// Returns whether the tunnel is up.

@@ -20,8 +20,8 @@ use tray_icon::menu::{Menu, PredefinedMenuItem, Submenu};
 mod autoupdate;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod bootstrap;
-mod manager;
 mod fakefs;
+mod manager;
 
 mod mtbus;
 mod rpc;
@@ -85,9 +85,7 @@ fn main() -> anyhow::Result<()> {
                     window.set_visible(true);
                     window.set_focus();
                 });
-                request
-                    .respond(tiny_http::Response::from_string("ok"))
-                    .ok();
+                request.respond(tiny_http::Response::from_string("ok")).ok();
                 continue;
             }
             let url = if url.is_empty() { "index.html" } else { url };

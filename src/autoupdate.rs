@@ -18,7 +18,7 @@ use rfd::MessageDialog;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::manager::{daemon_rpc, stop_daemon};
+use crate::manager::daemon_rpc;
 
 const UPDATE_MEAN_INTERVAL_HOURS: f64 = 6.0;
 const RETRY_DELAY_SECONDS: u64 = 600;
@@ -168,9 +168,13 @@ async fn run_update(version: &str, path: &Path) -> anyhow::Result<()> {
     };
 
     let description = if is_chinese {
-        format!("迷雾通新版本可用 ({version}). 安装此更新将停止当前迷雾通程序并运行安装程序。现在安装？")
+        format!(
+            "迷雾通新版本可用 ({version}). 安装此更新将停止当前迷雾通程序并运行安装程序。现在安装？"
+        )
     } else {
-        format!("A new version of Geph is available ({version}). Installing this update will stop the current Geph program and run the installer. Install now?")
+        format!(
+            "A new version of Geph is available ({version}). Installing this update will stop the current Geph program and run the installer. Install now?"
+        )
     };
 
     let result = MessageDialog::new()
@@ -201,10 +205,9 @@ async fn run_update(version: &str, path: &Path) -> anyhow::Result<()> {
     };
 
     if should_exit {
-        // Stop the tunnel
-        stop_daemon().await?;
-
-        // Exit the application
+        // The installer stops the Windows service cooperatively before replacing
+        // its binaries. Disconnecting here would unnecessarily discard the user's
+        // desired connection state, so leave manager teardown to the installer.
         tracing::info!("Exiting for update installation");
         exit(0);
     }

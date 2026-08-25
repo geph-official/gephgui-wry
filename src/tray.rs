@@ -222,7 +222,10 @@ mod l10n {
         if locale.starts_with("zh") {
             // Traditional Chinese for Taiwan/Hong Kong/Macau or an explicit
             // `Hant` script subtag; Simplified otherwise.
-            if ["tw", "hk", "mo", "hant"].iter().any(|t| locale.contains(t)) {
+            if ["tw", "hk", "mo", "hant"]
+                .iter()
+                .any(|t| locale.contains(t))
+            {
                 Lang::ZhTw
             } else {
                 Lang::ZhCn
@@ -303,7 +306,8 @@ mod l10n {
 /// Decode the embedded logo PNG into a tray icon (mirrors the window-icon decode
 /// in main.rs, but produces `tray_icon::Icon` rather than `tao::window::Icon`).
 fn load_icon() -> anyhow::Result<Icon> {
-    let mut reader = png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref()).read_info()?;
+    let mut reader =
+        png::Decoder::new(include_bytes!("logo-naked-32px.png").as_ref()).read_info()?;
     let mut buf = vec![0; reader.output_buffer_size()];
     reader.next_frame(&mut buf)?;
     let icon = Icon::from_rgba(buf, reader.info().width, reader.info().height)?;
