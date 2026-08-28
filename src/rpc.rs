@@ -9,7 +9,7 @@ use webbrowser::open_browser;
 use crate::{
     WINDOW_HEIGHT, WINDOW_WIDTH,
     manager::{
-        daemon_rpc, manager_connected, restart_daemon, set_exit_constraint, start_daemon,
+        daemon_rpc, logout, manager_connected, restart_daemon, set_exit_constraint, start_daemon,
         stop_daemon,
     },
     mtbus::mt_enqueue,
@@ -62,6 +62,11 @@ trait IpcProtocol {
     /// Stop the tunnel.
     async fn stop_daemon(&self) {
         let _ = stop_daemon().await;
+    }
+
+    /// Disconnect the tunnel and forget the manager's persisted account secret.
+    async fn logout(&self) -> Result<(), String> {
+        logout().await.map_err(|s| format!("{:?}", s))
     }
 
     /// Restart the tunnel with the given arguments.

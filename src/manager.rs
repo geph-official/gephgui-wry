@@ -114,6 +114,12 @@ pub async fn stop_daemon() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Disconnect and forget the manager's persisted account secret.
+pub async fn logout() -> anyhow::Result<()> {
+    ctl(client().logout(session())).await?;
+    Ok(())
+}
+
 /// Reconnect using the manager's already-persisted secret + exit constraint, with
 /// no `DaemonArgs` from the JS UI. This is what the tray "Connect" action uses:
 /// the manager keeps the last-used settings, so a bare `connect` brings the tunnel
