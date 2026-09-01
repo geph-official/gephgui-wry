@@ -1812,7 +1812,6 @@ dependencies = [
  "tracing-subscriber",
  "tray-icon",
  "webbrowser",
- "windows-service",
  "windows-sys 0.59.0",
  "winres",
  "wry",
@@ -5668,7 +5667,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecad156490d6b620308ed411cfee90d280b3cbd13e189ea0d3fada8acc89158a"
 dependencies = [
  "web-sys",
- "widestring 0.4.3",
+ "widestring",
  "winapi",
 ]
 
@@ -5766,12 +5765,6 @@ name = "widestring"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c168940144dd21fd8046987c16a46a33d5fc84eec29ef9dcddc2ac9e31526b7c"
-
-[[package]]
-name = "widestring"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
 
 [[package]]
 name = "winapi"
@@ -5963,17 +5956,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56f42bd332cc6c8eac5af113fc0c1fd6a8fd2aa08a0119358686e5160d0586c6"
 dependencies = [
  "windows-link 0.1.3",
-]
-
-[[package]]
-name = "windows-service"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "857224b3b211c6f3616921f081ee54721ee3ad2ace2fac6a6337e032f7b4dcf2"
-dependencies = [
- "bitflags 2.11.1",
- "widestring 1.2.1",
- "windows-sys 0.61.2",
 ]
 
 [[package]]

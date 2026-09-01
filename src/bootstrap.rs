@@ -22,11 +22,12 @@
 //! (automatic, LocalSystem), so normally the manager is up before any user logs in.
 //! But AV / "PC cleaner" tools sometimes disable or delete background services;
 //! without a repair path that breaks Geph permanently until a reinstall. When the
-//! manager pipe definitively fails, we run the same orchestration with UAC in place
-//! of pkexec: explain → `ShellExecuteExW` ("runas") on the sibling
-//! `geph5.exe register-manager` → wait for the named pipe to answer. Since the GUI
-//! autostarts at every logon ({commonstartup} shortcut in setup.iss), this heals a
-//! damaged registration at the next logon or app launch.
+//! manager pipe fails, we run the same orchestration with UAC in place of pkexec:
+//! explain → `ShellExecuteExW` ("runas") on the sibling
+//! `geph5.exe register-manager`. That command does not return successfully until the
+//! service is running and its named pipe is ready. Since the GUI autostarts at every
+//! logon ({commonstartup} shortcut in setup.iss), this heals a damaged registration
+//! at the next logon or app launch.
 //!
 //! The orchestration (detect → dialog → elevate → result) is generic; only the
 //! command wrapping and the post-install relaunch differ between native and Flatpak.
@@ -40,6 +41,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 #[cfg(target_os = "linux")]
 use std::process::Command;
+#[cfg(target_os = "linux")]
 use std::time::Duration;
 
 use anyhow::Context;
@@ -66,18 +68,6 @@ fn ensure_manager_windows() -> bool {
         return true;
     }
 
-    // A running/start-pending service may simply be between SCM recovery and
-    // binding the control pipe. Give that supervised recovery a bounded chance
-    // before asking the user for elevation.
-    if manager_service_active() {
-        for _ in 0..100 {
-            std::thread::sleep(Duration::from_millis(50));
-            if reachable() {
-                return true;
-            }
-        }
-    }
-
     if !explain_dialog() {
         return false; // user chose Quit
     }
@@ -85,7 +75,10 @@ fn ensure_manager_windows() -> bool {
     // Elevate + repair, retrying on failure until it succeeds or the user quits.
     loop {
         match do_install_windows() {
-            Ok(()) => break,
+            // register-manager returns successfully only after the service is
+            // running and its control pipe is ready, so there is nothing else for
+            // the GUI to inspect or wait for.
+            Ok(()) => return true,
             Err(err) => {
                 if !error_retry_dialog(&err.to_string()) {
                     return false;
@@ -93,39 +86,6 @@ fn ensure_manager_windows() -> bool {
             }
         }
     }
-
-    // The manager binds its named pipe before initializing children or touching
-    // the network. Wait for that concrete state transition rather than turning
-    // an arbitrary elapsed duration into another "manager is dead" result.
-    while !reachable() {
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    true
-}
-
-#[cfg(target_os = "windows")]
-fn manager_service_active() -> bool {
-    use windows_service::{
-        service::{ServiceAccess, ServiceState},
-        service_manager::{ServiceManager, ServiceManagerAccess},
-    };
-
-    let Ok(manager) = ServiceManager::local_computer(None::<&str>, ServiceManagerAccess::CONNECT)
-    else {
-        return false;
-    };
-    let Ok(service) = manager.open_service("GephManager", ServiceAccess::QUERY_STATUS) else {
-        return false;
-    };
-    service
-        .query_status()
-        .map(|status| {
-            matches!(
-                status.current_state,
-                ServiceState::Running | ServiceState::StartPending
-            )
-        })
-        .unwrap_or(false)
 }
 
 /// Run the sibling `geph5.exe register-manager` elevated via the UAC "runas" verb

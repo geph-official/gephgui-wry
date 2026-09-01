@@ -57,7 +57,6 @@ libc = "0.2"
 # ShellExecuteExW("runas") for the bootstrap's UAC-elevated `geph5 register-manager`
 # repair path (bootstrap.rs); same windows-sys line as geph5 itself.
 [target.'cfg(windows)'.dependencies]
-windows-service = "0.8.1"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_System_Registry", # SHELLEXECUTEINFOW embeds an HKEY
