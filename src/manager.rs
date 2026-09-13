@@ -103,8 +103,9 @@ pub async fn start_daemon(args: DaemonArgs) -> anyhow::Result<()> {
 }
 
 pub async fn restart_daemon(args: DaemonArgs) -> anyhow::Result<()> {
-    // One coherent snapshot; the manager automatically performs exactly one
-    // full reconciliation when already connected.
+    // The supplied credential is part of the restart, including while offline.
+    // set_secret persists it locally and reconciles a connected engine if changed.
+    ctl(client().set_secret(args.secret.clone())).await?;
     ctl(client().apply_settings(tunnel_settings(&args)?, session())).await?;
     Ok(())
 }
